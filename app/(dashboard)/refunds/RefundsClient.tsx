@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Search, RefreshCw, AlertCircle, Calendar, CheckCircle2, XCircle, Info, DollarSign, ArrowUpDown } from "lucide-react";
 
 export type OrderForRefund = {
@@ -54,7 +54,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
     if (!confirm(confirmMsg)) return;
 
     setProcessingId(order.id);
-    const { error } = await supabase
+    const { error } = await db
       .from("orders")
       .update({ status: "cancelled" })
       .eq("id", order.id);
@@ -67,11 +67,13 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
 
     // Send in-app notification to customer
     try {
-      await supabase.from("notifications").insert({
+      await db.from("notifications").insert({
         user_id: order.user_id,
         title: "Order Refund Processed",
         body: `Your order #${order.id.slice(0,8).toUpperCase()} has been cancelled and ₹${refundAmt.toLocaleString()} refund has been initiated. It will reflect in 5-7 business days.`,
-        type: "info", is_read: false, created_at: new Date().toISOString(),
+        // created_at is NOT sent: it is not in CreateNotificationDto and the
+        // backend uses forbidNonWhitelisted, so sending it returns 400.
+        type: "info", is_read: false,
       });
     } catch (err) {
       // Best-effort: never block the refund on a notification failure, but do

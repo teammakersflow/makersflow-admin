@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Search, Plus, Edit2, Trash2, Calendar, Eye } from "lucide-react";
 
 type Article = {
@@ -17,18 +18,21 @@ export default function NewsPage() {
   const router = useRouter();
 
   const [articles, setArticles] = useState<Article[]>([]);
+
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadArticles() {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("news")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error(error);
+        console.warn("[news] data error:", error);
+        setLoadError(error.message);
         return;
       }
 
@@ -54,7 +58,7 @@ export default function NewsPage() {
 
     setDeletingId(id);
 
-    const { error } = await supabase.from("news").delete().eq("id", id);
+    const { error } = await db.from("news").delete().eq("id", id);
 
     if (error) {
       console.error("Delete error:", error);
@@ -81,6 +85,7 @@ export default function NewsPage() {
 
   return (
     <div className="space-y-6">
+      <DataErrorNotice message={loadError} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

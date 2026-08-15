@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { CourseFormData, CourseWithModules, ModuleWithLessons } from "@/types/course";
-import { createCourse, updateCourse } from "@/lib/supabase-course";
+import { createCourse, updateCourse } from "@/lib/course-api";
 import Step1CourseDetails from "./Step1CourseDetails";
 import Step2Modules from "./Step2Modules";
 import Step3Lessons from "./Step3Lessons";
@@ -66,7 +66,7 @@ export default function CourseWizard({ existingCourse }: Props) {
       }
       setCurrentStep(2);
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/CourseWizard] data error:", err);
       alert("Failed to save course. Please try again.");
     } finally {
       setSavingStep1(false);

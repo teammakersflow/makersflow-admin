@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { db } from "@/lib/db";
+import { apiFetch } from "@/lib/api-client";
 import type { UserProfile } from '@/types/users';
 import { X, GraduationCap, Package, Shield, AlertTriangle, Send, Check, BookOpen, Plus } from 'lucide-react';
 
@@ -36,9 +37,9 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     setLoading(true);
     setActionMsg('');
     Promise.all([
-      supabase.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false }),
-      supabase.from('orders').select('id, created_at, total_amount, status, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-      supabase.from('courses').select('id, title').eq('is_published', true).order('title'),
+      db.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false }),
+      db.from('orders').select('id, created_at, total_amount, status, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+      db.from('courses').select('id, title').eq('is_published', true).order('title'),
     ]).then(([e, p, c]) => {
       setEnrollments((e.data ?? []) as unknown as Enrollment[]);
       setPurchases(p.data ?? []);
@@ -52,7 +53,17 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
   const handleBanToggle = async () => {
     if (!confirm(isBanned ? `Unban ${user.email}?` : `Ban ${user.email}? They won't be able to log in.`)) return;
     setBanning(true);
-    const { error } = await supabase.from('profiles').update({ is_banned: !isBanned } as any).eq('id', user.id);
+    // The backend has no PATCH /users/:id. Banning is a dedicated route:
+    // PATCH /users/:id/ban with body { isBanned } (camelCase, not is_banned).
+    let error: { message: string } | null = null;
+    try {
+      await apiFetch(`/users/${user.id}/ban`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isBanned: !isBanned }),
+      });
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : 'Ban update failed' };
+    }
     if (error) { alert(error.message); } else {
       setIsBanned(b => !b);
       setActionMsg(isBanned ? 'User unbanned successfully.' : 'User banned successfully.');
@@ -65,9 +76,11 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     if (!confirm(`Grant free access to selected course for ${user.email}?`)) return;
     setGrantingCourse(true);
     const expiresAt = new Date(Date.now() + 365 * 86400000).toISOString();
-    const { error } = await supabase.from('enrollments').upsert({
+    // enrolled_at is NOT sent: it is not in CreateEnrollmentDto and the
+    // backend uses forbidNonWhitelisted. The DB defaults it to now().
+    const { error } = await db.from('enrollments').upsert({
       user_id: user.id, course_id: selectedCourseId,
-      payment_status: 'completed', enrolled_at: new Date().toISOString(),
+      payment_status: 'completed',
       expires_at: expiresAt,
     }, { onConflict: 'user_id,course_id' });
     if (error) { alert(error.message); }
@@ -77,7 +90,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
       setShowGrantForm(false);
       setSelectedCourseId('');
       // Reload enrollments
-      const { data } = await supabase.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false });
+      const { data } = await db.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false });
       setEnrollments((data ?? []) as unknown as Enrollment[]);
     }
     setGrantingCourse(false);
@@ -85,7 +98,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
 
   const handleRevokeAccess = async (enrollmentId: string, courseTitle: string) => {
     if (!confirm(`Revoke access to "${courseTitle}"? Student will lose access immediately.`)) return;
-    const { error } = await supabase.from('enrollments').delete().eq('id', enrollmentId);
+    const { error } = await db.from('enrollments').delete().eq('id', enrollmentId);
     if (!error) {
       setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
       setActionMsg(`✓ Access to "${courseTitle}" revoked.`);
@@ -95,9 +108,11 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
   const handleSendNotification = async () => {
     if (!notifTitle.trim() || !notifMsg.trim()) { alert('Title and message required'); return; }
     setSendingNotif(true);
-    const { error } = await supabase.from('notifications').insert({
+    const { error } = await db.from('notifications').insert({
+      // created_at is set server-side; sending it returns 400 because the
+      // backend validates with forbidNonWhitelisted.
       user_id: user.id, title: notifTitle, body: notifMsg,
-      type: 'info', is_read: false, link: null, created_at: new Date().toISOString(),
+      type: 'info', is_read: false,
     });
     if (error) { alert(error.message); }
     else { setActionMsg(`✓ Notification sent to ${user.email}.`); setShowNotifForm(false); setNotifTitle(''); setNotifMsg(''); }

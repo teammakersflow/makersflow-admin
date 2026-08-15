@@ -19,7 +19,7 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
-} from "@/lib/supabase-course";
+} from "@/lib/course-api";
 import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 interface Props {
@@ -160,7 +160,7 @@ async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     };
     video.src = URL.createObjectURL(file);
   } catch (err) {
-    console.error(err);
+    console.warn("[components/courses/Step3Lessons] data error:", err);
     alert("Failed to upload video. Please try again.");
     setVideoFileName(null);
   } finally {
@@ -221,7 +221,7 @@ async function removeVideo() {
 
       cancelEdit();
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/Step3Lessons] data error:", err);
       alert("Failed to save lesson. Please try again.");
     } finally {
       setSaving(false);
@@ -251,7 +251,7 @@ async function handleDelete(moduleId: string, lesson: Lesson) {
       if (key) await deleteFromS3(key);
     }
   } catch (err) {
-    console.error(err);
+    console.warn("[components/courses/Step3Lessons] data error:", err);
     alert("Failed to delete lesson. Please try again.");
   } finally {
     setDeletingId(null);

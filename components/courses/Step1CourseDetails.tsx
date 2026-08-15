@@ -3,8 +3,8 @@
 import { useRef, useState, useEffect } from "react";
 import { ImagePlus, X, Loader2, Star } from "lucide-react";
 import { Category, CourseFormData } from "@/types/course";
-import { fetchCategories } from "@/lib/supabase-course";
-import { supabase } from "@/lib/supabase";
+import { fetchCategories } from "@/lib/course-api";
+import { db } from "@/lib/db";
 import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 interface Props {
@@ -99,7 +99,7 @@ async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
     const publicUrl = await uploadToS3(file, 'courses');
     set("thumbnail_url", publicUrl);
   } catch (err) {
-    console.error(err);
+    console.warn("[components/courses/Step1CourseDetails] data error:", err);
     alert("Failed to upload thumbnail. Please try again.");
     setThumbPreview(null);
   } finally {
@@ -142,7 +142,7 @@ async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
         uploaded.push(await uploadToS3(valid[i], "courses"));
       }
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/Step1CourseDetails] data error:", err);
       setGalleryError(
         err instanceof Error ? err.message : "Failed to upload one or more images."
       );
@@ -189,7 +189,7 @@ async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
 
     setSavingCategory(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("categories")
         .insert({ name, slug: slugify(name) })
         .select()
@@ -202,7 +202,7 @@ async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
       setIsAddingCategory(false);
       setNewCategory("");
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/Step1CourseDetails] data error:", err);
       alert("Failed to add category. Please try again.");
     } finally {
       setSavingCategory(false);

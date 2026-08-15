@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Calendar, Edit2 } from "lucide-react";
 
 type Article = {
@@ -22,13 +22,13 @@ export default function ViewArticlePage() {
 
   useEffect(() => {
     async function fetchArticle() {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("news")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) console.error(error);
+      if (error) console.warn("[news/[id]] data error:", error);
       else setArticle(data);
       setLoading(false);
     }

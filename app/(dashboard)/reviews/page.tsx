@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Star, Check, X, Trash2, MessageSquare } from "lucide-react";
 
 // Moderation queue for course reviews submitted from the app & web.
@@ -54,14 +54,14 @@ export default function ReviewsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, ...countResults] = await Promise.all([
-      supabase
+      db
         .from("reviews")
         .select("id, user_id, course_id, rating, comment, status, created_at")
         .eq("status", tab)
         .order("created_at", { ascending: false })
         .limit(200),
       ...TABS.map((t) =>
-        supabase
+        db
           .from("reviews")
           .select("id", { count: "exact", head: true })
           .eq("status", t.id)
@@ -77,15 +77,15 @@ export default function ReviewsPage() {
 
     const [{ data: profs }, { data: crs }] = await Promise.all([
       userIds.length
-        ? supabase.from("profiles").select("id, email, full_name").in("id", userIds)
+        ? db.from("profiles").select("id, email, full_name").in("id", userIds)
         : Promise.resolve({ data: [] as any[] }),
       courseIds.length
-        ? supabase.from("courses").select("id, title").in("id", courseIds)
+        ? db.from("courses").select("id, title").in("id", courseIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
-    const profMap = new Map((profs ?? []).map((p: any) => [p.id, p]));
-    const courseMap = new Map((crs ?? []).map((c: any) => [String(c.id), c]));
+    const profMap = new Map<string, any>((profs ?? []).map((p: any) => [p.id, p] as [string, any]));
+    const courseMap = new Map<string, any>((crs ?? []).map((c: any) => [String(c.id), c] as [string, any]));
 
     setReviews(
       rows.map((r) => ({
@@ -106,7 +106,7 @@ export default function ReviewsPage() {
 
   async function setStatus(id: string, status: Review["status"]) {
     setBusy(id);
-    const { error } = await supabase.from("reviews").update({ status }).eq("id", id);
+    const { error } = await db.from("reviews").update({ status }).eq("id", id);
     setBusy(null);
     if (error) {
       alert(`Failed: ${error.message}`);
@@ -118,7 +118,7 @@ export default function ReviewsPage() {
   async function remove(id: string) {
     if (!confirm("Permanently delete this review?")) return;
     setBusy(id);
-    await supabase.from("reviews").delete().eq("id", id);
+    await db.from("reviews").delete().eq("id", id);
     setBusy(null);
     load();
   }
@@ -126,7 +126,7 @@ export default function ReviewsPage() {
   async function submitReply(reviewId: string) {
     if (!replyText.trim()) return;
     setSubmittingReply(true);
-    await supabase.from("review_replies").insert({
+    await db.from("review_replies").insert({
       review_id: reviewId, content: replyText.trim(), created_at: new Date().toISOString(),
     });
     setSubmittingReply(false);

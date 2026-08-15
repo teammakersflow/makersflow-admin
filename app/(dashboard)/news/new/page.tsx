@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { uploadToS3 } from "@/lib/s3Upload";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
 
 export default function NewArticlePage() {
@@ -59,22 +60,16 @@ export default function NewArticlePage() {
   async function uploadThumbnail(): Promise<string | null> {
     if (!thumbnailFile) return null;
     setUploading(true);
-    const ext = thumbnailFile.name.split(".").pop();
-    const fileName = `news-${Date.now()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("news-images") // 👈 tell your backend dev to create this bucket
-      .upload(fileName, thumbnailFile, { cacheControl: "3600", upsert: false });
-
-    if (error) {
-      setUploadError(error.message);
+    try {
+      // Was Supabase Storage. Now uses the backend's presigned S3 upload.
+      const publicUrl = await uploadToS3(thumbnailFile, "news");
+      setUploading(false);
+      return publicUrl;
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
       setUploading(false);
       return null;
     }
-
-    const { data } = supabase.storage.from("news-images").getPublicUrl(fileName);
-    setUploading(false);
-    return data.publicUrl;
   }
 
   async function createArticle() {
@@ -88,7 +83,7 @@ export default function NewArticlePage() {
     // Upload thumbnail first if selected
     const thumbnailUrl = await uploadThumbnail();
 
-    const { error } = await supabase.from("news").insert({
+    const { error } = await db.from("news").insert({
       title,
       slug,
       content,

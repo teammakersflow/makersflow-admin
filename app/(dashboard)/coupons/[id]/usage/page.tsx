@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Users, DollarSign, Tag } from "lucide-react";
 
 type CouponUsage = {
@@ -16,15 +17,17 @@ export default function CouponUsagePage() {
   const params = useParams();
   const id = params?.id as string;
   const [coupon, setCoupon] = useState<Coupon | null>(null);
+  const [loadError, setLoadError] = useState("");
   const [usage, setUsage] = useState<CouponUsage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      supabase.from("coupons").select("id, code, discount_type, discount_value, used_count, usage_limit").eq("id", id).maybeSingle(),
-      supabase.from("coupon_usage").select("id, used_at, discount_amount, user_id, profiles(email, full_name)").eq("coupon_id", id).order("used_at", { ascending: false }),
-    ]).then(([{ data: c, error: couponErr }, { data: u }]) => {
-      if (couponErr) console.error("[coupon-usage] DB error:", couponErr.message);
+      db.from("coupons").select("id, code, discount_type, discount_value, used_count, usage_limit").eq("id", id).maybeSingle(),
+      db.from("coupon_usage").select("id, used_at, discount_amount, user_id, profiles(email, full_name)").eq("coupon_id", id).order("used_at", { ascending: false }),
+    ]).then(([{ data: c, error: couponErr }, { data: u, error: usageErr }]) => {
+      if (couponErr) { console.warn("[coupon-usage] coupon load failed:", couponErr.message); setLoadError(couponErr.message); }
+      if (usageErr) { console.warn("[coupon-usage] usage load failed:", usageErr.message); setLoadError(usageErr.message); }
       if (c) setCoupon(c as Coupon);
       setUsage((u ?? []) as unknown as CouponUsage[]);
       setLoading(false);
@@ -40,6 +43,7 @@ export default function CouponUsagePage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <DataErrorNotice message={loadError} />
       <button onClick={() => router.push("/coupons")} className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
         <ArrowLeft size={18} /> Back to Coupons
       </button>

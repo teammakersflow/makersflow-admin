@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { fetchProduct } from "@/lib/products-api";
+import { fetchOrders, fetchUserMap } from "@/lib/orders-api";
 import { ArrowLeft, Edit2, Package, DollarSign, ShoppingCart, BarChart2, Star, Image as ImageIcon, TrendingUp, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
@@ -51,23 +52,37 @@ export default function ViewProductPage() {
 
   useEffect(() => {
     async function fetchAll() {
-      const [{ data: prod }, { data: orders }] = await Promise.all([
-        supabase.from("products").select("*").eq("id", id).maybeSingle(),
-        // Fetch ALL orders (including paid, shipped, delivered) — not cancelled
-        supabase.from("orders")
-          .select("id, created_at, total_amount, status, items, profiles(email, full_name)")
-          .neq("status", "cancelled")
-          .order("created_at", { ascending: false }),
+      // GET /products/:id, GET /orders and GET /users.
+      // The buyer email previously came from a Supabase embedded join
+      // (`profiles(email, full_name)`), which REST cannot do — users are
+      // fetched separately and joined in memory below.
+      const [prod, allOrders, userMap] = await Promise.all([
+        fetchProduct(id),
+        fetchOrders().catch(() => []),
+        fetchUserMap().catch(() => new Map()),
       ]);
 
-      if (prod) setProduct(prod as Product);
+      if (prod) setProduct(prod as unknown as Product);
 
       // Filter orders that contain this product in items array
-      const allOrdersTyped = ((orders ?? []) as unknown as Array<{
+      const allOrdersTyped = allOrders
+        .filter((o) => o.status !== "cancelled")
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+        .map((o) => {
+          const u = userMap.get(o.user_id);
+          return {
+            id: o.id,
+            created_at: o.created_at,
+            total_amount: o.total_amount,
+            status: o.status,
+            items: Array.isArray(o.items) ? o.items : [],
+            profiles: u ? { email: u.email ?? "", full_name: u.full_name ?? null } : null,
+          };
+        }) as Array<{
         id: string; created_at: string; total_amount: number; status: string;
         profiles?: { email: string; full_name: string | null } | null;
         items?: Array<{ id?: string; title?: string; qty?: number; price?: number }>;
-      }>);
+      }>;
 
       const productOrders = allOrdersTyped.filter(o => {
         const items = Array.isArray(o.items) ? o.items : [];

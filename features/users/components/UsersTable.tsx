@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { db } from "@/lib/db";
 import type { UserProfile } from '@/types/users';
 import { Search, Download, UserCheck, Shield, Clock, Filter } from 'lucide-react';
 
@@ -15,16 +15,16 @@ export default function UsersTable({ onSelectUser }: Props) {
   const [sortField, setSortField] = useState<'created_at'|'last_sign_in_at'>('created_at');
 
   useEffect(() => {
-    supabase.from('profiles').select('*').order('created_at', { ascending: false })
+    db.from('profiles').select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setUsers(data ?? []); setLoading(false); });
 
-    const channel = supabase.channel('realtime-users')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
+    const channel = db.channel('realtime-users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload: any) => {
         if (payload.eventType === 'INSERT') setUsers(p => [payload.new as UserProfile, ...p]);
         else if (payload.eventType === 'UPDATE') setUsers(p => p.map(u => u.id === (payload.new as UserProfile).id ? payload.new as UserProfile : u));
         else if (payload.eventType === 'DELETE') setUsers(p => p.filter(u => u.id !== (payload.old as UserProfile).id));
       }).subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { db.removeChannel(channel); };
   }, []);
 
   const filtered = useMemo(() => users.filter(u => {

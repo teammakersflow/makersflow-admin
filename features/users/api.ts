@@ -1,7 +1,7 @@
-import { supabase } from '@/lib/supabase';
+import { db } from "@/lib/db";
 
 export async function fetchAllUsers() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: false });
@@ -12,12 +12,12 @@ export async function fetchAllUsers() {
 
 export async function fetchUserDetail(userId: string) {
   const [profileRes, enrollmentsRes, purchasesRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-    supabase
+    db.from('profiles').select('*').eq('id', userId).single(),
+    db
       .from('enrollments')
       .select('*, course:courses(id, title, thumbnail_url)')
       .eq('user_id', userId),
-    supabase
+    db
       .from('orders')
       .select('*, product:products(id, name, price)')
       .eq('user_id', userId),

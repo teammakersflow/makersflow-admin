@@ -6,20 +6,22 @@ WORKDIR /app
 
 # NEXT_PUBLIC_* values are inlined into the browser bundle at BUILD time, so
 # they must arrive as build args. Supplying them only as runtime env has no
-# effect on the client-side code.
-#
-# SUPABASE_SERVICE_ROLE_KEY is deliberately NOT an arg — it is read server-side
-# at runtime and must never be prefixed NEXT_PUBLIC_ or baked into the image.
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+# effect on the client-side code — the container must be rebuilt (not just
+# restarted) whenever these values change.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ARG NEXT_PUBLIC_S3_PUBLIC_BASE_URL
 
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
+    NEXT_PUBLIC_S3_PUBLIC_BASE_URL=$NEXT_PUBLIC_S3_PUBLIC_BASE_URL
 
-RUN test -n "$NEXT_PUBLIC_SUPABASE_URL" \
- || (echo "FATAL: NEXT_PUBLIC_SUPABASE_URL build arg is required" >&2; exit 1)
-RUN test -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
- || (echo "FATAL: NEXT_PUBLIC_SUPABASE_ANON_KEY build arg is required" >&2; exit 1)
+RUN test -n "$NEXT_PUBLIC_API_URL" \
+ || (echo "FATAL: NEXT_PUBLIC_API_URL build arg is required" >&2; exit 1)
+RUN test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" \
+ || (echo "FATAL: NEXT_PUBLIC_GOOGLE_CLIENT_ID build arg is required" >&2; exit 1)
+RUN test -n "$NEXT_PUBLIC_S3_PUBLIC_BASE_URL" \
+ || (echo "FATAL: NEXT_PUBLIC_S3_PUBLIC_BASE_URL build arg is required (file uploads break without it)" >&2; exit 1)
 
 COPY package*.json ./
 RUN npm ci
@@ -28,12 +30,6 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
-
-# Refuse to ship an image that leaked a service_role key to the browser.
-RUN if grep -rqs 'service_role' .next/static; then \
-      echo "FATAL: a service_role key reached the client bundle. Aborting." >&2; \
-      exit 1; \
-    fi
 
 # ---- runtime stage ---------------------------------------------------------
 FROM node:22-slim AS runner

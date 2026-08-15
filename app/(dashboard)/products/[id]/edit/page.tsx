@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { fetchProduct as apiFetchProduct, updateProduct } from "@/lib/products-api";
 import { ArrowLeft, Upload, X, Star, Play } from "lucide-react";
 import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
@@ -47,7 +48,8 @@ function toUrlArray(raw: unknown): string[] {
 
 export default function EditProductPage() {
   const router = useRouter();
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = String(rawId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,7 @@ export default function EditProductPage() {
   // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("categories")
         .select("id, name")
         .order("name");
@@ -96,13 +98,14 @@ export default function EditProductPage() {
   // Fetch product
   useEffect(() => {
     async function fetchProduct() {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) { console.error(error); setLoading(false); return; }
+      // GET /products/:id
+      let data: any = null;
+      try {
+        data = await apiFetchProduct(id);
+      } catch (e) {
+        console.warn("[products/edit] could not load product:", e);
+      }
+      if (!data) { setLoading(false); return; }
 
       setForm({
         title: data.title || "",
@@ -151,7 +154,7 @@ export default function EditProductPage() {
     if (!name) return;
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     setAddingCategory(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("categories")
       .insert({ name, slug })
       .select("id, name")
@@ -171,14 +174,16 @@ export default function EditProductPage() {
   async function persistMedia(media: ExistingMedia[], thumb: string) {
     const images = media.filter((m) => m.type === "image").map((m) => m.url);
     const videos = media.filter((m) => m.type === "video").map((m) => m.url);
-    const { error } = await supabase.from("products").update({
-      images,
-      videos,
-      thumbnail_url: thumb || null,
-    }).eq("id", id);
-    if (error) {
-      console.error("persistMedia failed:", error);
-      setUploadError(`Could not save media: ${error.message}`);
+    try {
+      await updateProduct(id, {          // PATCH /products/:id
+        images,
+        videos,
+        thumbnail_url: thumb || undefined,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      console.warn("[products/edit] persistMedia failed:", e);
+      setUploadError(`Could not save media: ${msg}`);
     }
   }
 
@@ -258,7 +263,7 @@ export default function EditProductPage() {
       setThumbnailUrl(thumb);
       await persistMedia(media, thumb);
     } catch (err) {
-      console.error(err);
+      console.warn("[products/[id]/edit] data error:", err);
       setUploadError(
         err instanceof Error ? err.message : "Failed to upload. Please try again."
       );
@@ -305,24 +310,27 @@ export default function EditProductPage() {
           ? "sold_out"
           : "available";
 
-    const { error } = await supabase.from("products").update({
-      ...form,
-      in_stock: !outOfStock,
-      status: resolvedStatus,
-      price: Number(form.price) || 0,
-      original_price: Number(form.original_price) || null,
-      weight_kg: Number(form.weight_kg) || 0,
-      // Media is written here too so Save is always authoritative.
-      images,
-      videos,
-      thumbnail_url: thumbnailUrl || null,
-      features: form.features.split(",").map((f) => f.trim()).filter(Boolean),
-    }).eq("id", id);
-    if (error) {
-      console.error(error);
-      alert(`Failed to save: ${error.message}`);
-    } else {
+    try {
+      // PATCH /products/:id (admin-guarded). Fields the backend DTO does not
+      // accept yet are stripped by products-api with a console warning.
+      await updateProduct(id, {
+        ...form,
+        in_stock: !outOfStock,
+        status: resolvedStatus,
+        price: Number(form.price) || 0,
+        original_price: Number(form.original_price) || 0,
+        weight_kg: Number(form.weight_kg) || 0,
+        // Media is written here too so Save is always authoritative.
+        images,
+        videos,
+        thumbnail_url: thumbnailUrl || undefined,
+        features: form.features.split(",").map((f) => f.trim()).filter(Boolean),
+      });
       router.push("/products");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "unknown error";
+      console.warn("[products/[id]/edit] data error:", e);
+      alert(`Failed to save: ${msg}`);
     }
     setSaving(false);
   };

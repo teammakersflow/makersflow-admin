@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Users, DollarSign, BookOpen, BarChart2, Edit, TrendingUp, Clock } from "lucide-react";
 
 type Course = {
@@ -50,23 +50,23 @@ export default function ViewCoursePage() {
         { data: purchases },
         { data: recentEnroll },
       ] = await Promise.all([
-        supabase.from("courses").select("*").eq("id", id).maybeSingle(),
+        db.from("courses").select("*").eq("id", id).maybeSingle(),
 
         // All enrollments for this course (to show real total)
-        supabase
+        db
           .from("enrollments")
           .select("id, enrolled_at, payment_status, completed_at")
           .eq("course_id", id),
 
         // Paid purchases for revenue
-        supabase
+        db
           .from("course_purchases")
           .select("amount_paid")
           .eq("course_id", id)
           .eq("status", "active"),
 
         // Recent PAID enrollments — get enrollment rows first
-        supabase
+        db
           .from("enrollments")
           .select("id, user_id, enrolled_at, payment_status, completed_at")
           .eq("course_id", id)
@@ -97,7 +97,7 @@ export default function ViewCoursePage() {
       let enrichedEnrollments: EnrollmentRow[] = (recentEnroll ?? []) as unknown as EnrollmentRow[];
       const userIds = (recentEnroll ?? []).map((e: any) => e.user_id).filter(Boolean);
       if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
+        const { data: profilesData } = await db
           .from("profiles")
           .select("id, email, full_name")
           .in("id", userIds);

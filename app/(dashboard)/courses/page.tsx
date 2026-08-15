@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Search, Edit2, Trash2, Eye, BookOpen, Users, Plus, Copy } from "lucide-react";
 import { deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 import { PageHeader } from "@/components/ui/page-header";
@@ -35,7 +35,7 @@ export default function CoursesPage() {
   useEffect(() => {
     async function loadCourses() {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("courses")
         .select("*")
         .order("created_at", { ascending: false });
@@ -69,7 +69,7 @@ const handleDelete = async (id: string) => {
 
   try {
     // fetch all media URLs before deleting — thumbnail + all lesson videos
-    const { data: courseData } = await supabase
+    const { data: courseData } = await db
       .from("courses")
       .select(`
         thumbnail_url,
@@ -81,7 +81,7 @@ const handleDelete = async (id: string) => {
       .single();
 
     // delete the course — cascade deletes modules and lessons automatically
-    const { error } = await supabase.from("courses").delete().eq("id", id);
+    const { error } = await db.from("courses").delete().eq("id", id);
 
     if (error) {
       console.error("Delete error:", error);
@@ -111,7 +111,7 @@ const handleDelete = async (id: string) => {
       }
     }
   } catch (err) {
-    console.error(err);
+    console.warn("[courses] data error:", err);
   } finally {
     setDeletingId(null);
   }
@@ -139,7 +139,7 @@ const handleDelete = async (id: string) => {
     if (selectedIds.size === 0) return;
     if (!confirm(`${publish ? "Publish" : "Unpublish"} ${selectedIds.size} courses?`)) return;
     const ids = [...selectedIds];
-    const { error } = await supabase.from("courses").update({ is_published: publish }).in("id", ids);
+    const { error } = await db.from("courses").update({ is_published: publish }).in("id", ids);
     if (!error) {
       setCourses(prev => prev.map(c => selectedIds.has(c.id) ? { ...c, is_published: publish } : c));
       setSelectedIds(new Set());
@@ -148,7 +148,7 @@ const handleDelete = async (id: string) => {
 
   const duplicateCourse = async (course: Course) => {
     if (!confirm(`Duplicate "${course.title}"? A copy will be created as a Draft.`)) return;
-    const { data, error } = await supabase.from("courses").insert({
+    const { data, error } = await db.from("courses").insert({
       title: `Copy of ${course.title}`,
       category: course.category, level: course.level,
       price: course.price, is_free: course.is_free,

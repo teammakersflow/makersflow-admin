@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function EditCouponPage() {
@@ -30,9 +30,9 @@ export default function EditCouponPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("coupons").select("*").eq("id", id).single(),
-      supabase.from("courses").select("id, title").eq("is_published", true),
-      supabase.from("products").select("id, title"),
+      db.from("coupons").select("*").eq("id", id).single(),
+      db.from("courses").select("id, title").eq("is_published", true),
+      db.from("products").select("id, title"),
     ]).then(([{ data }, { data: c }, { data: p }]) => {
       if (data) {
         setForm({
@@ -63,7 +63,7 @@ export default function EditCouponPage() {
     if (!form.code.trim()) { alert("Coupon code is required"); return; }
     if (!form.discount_value || Number(form.discount_value) <= 0) { alert("Discount value must be > 0"); return; }
     setSaving(true);
-    const { error } = await supabase.from("coupons").update({
+    const { error } = await db.from("coupons").update({
       code: form.code.trim().toUpperCase(),
       description: form.description || null,
       discount_type: form.discount_type,

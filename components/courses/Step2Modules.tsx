@@ -16,7 +16,7 @@ import {
   createModule,
   updateModule,
   deleteModule,
-} from "@/lib/supabase-course";
+} from "@/lib/course-api";
 
 interface Props {
   courseId: string;
@@ -112,7 +112,7 @@ export default function Step2Modules({
 
       cancelEdit();
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/Step2Modules] data error:", err);
       alert("Failed to save module. Please try again.");
     } finally {
       setSaving(false);
@@ -136,7 +136,7 @@ export default function Step2Modules({
       onModulesChange(modules.filter((m) => m.id !== moduleId));
       if (editingId === moduleId) cancelEdit();
     } catch (err) {
-      console.error(err);
+      console.warn("[components/courses/Step2Modules] data error:", err);
       alert("Failed to delete module. Please try again.");
     } finally {
       setDeletingId(null);

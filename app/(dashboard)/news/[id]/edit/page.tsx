@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function EditArticlePage() {
@@ -19,13 +19,13 @@ export default function EditArticlePage() {
 
   useEffect(() => {
     async function fetchArticle() {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("news")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) console.error(error);
+      if (error) console.warn("[news/[id]/edit] data error:", error);
       else setForm({
         title:   data.title   || "",
         slug:    data.slug    || "",
@@ -54,13 +54,13 @@ export default function EditArticlePage() {
 
     setSaving(true);
 
-    const { error } = await supabase
+    const { error } = await db
       .from("news")
       .update(form)
       .eq("id", id);
 
     if (error) {
-      console.error(error);
+      console.warn("[news/[id]/edit] data error:", error);
       alert("Failed to save. Please try again.");
     } else {
       router.push("/news");

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { createProduct as apiCreateProduct, updateProduct as apiUpdateProduct } from "@/lib/products-api";
 import { ArrowLeft, Save, Upload, X, Star, Play } from "lucide-react";
 import { uploadToS3 } from "@/lib/s3Upload";
 
@@ -48,7 +49,7 @@ export default function NewProductPage() {
   // Fetch categories on mount
   useEffect(() => {
     async function fetchCategories() {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("categories")
         .select("id, name")
         .order("name");
@@ -94,7 +95,7 @@ export default function NewProductPage() {
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
     setAddingCategory(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from("categories")
       .insert({ name, slug })   // 👈 add slug here
       .select("id, name")
@@ -125,9 +126,11 @@ export default function NewProductPage() {
 
     // Step 1: Insert product to get the ID
     setUploadProgress("Creating product...");
-    const { data: product, error: insertError } = await supabase
-      .from("products")
-      .insert({
+    // POST /products (admin-guarded on the backend)
+    let product: { id: string | number } | null = null;
+    let insertError: { message: string } | null = null;
+    try {
+      product = await apiCreateProduct({
         title,
         slug,
         description,
@@ -151,9 +154,10 @@ export default function NewProductPage() {
           .split(",")
           .map((f) => f.trim())
           .filter(Boolean),
-      })
-      .select()
-      .single();
+      });
+    } catch (e) {
+      insertError = { message: e instanceof Error ? e.message : "Failed to create product" };
+    }
 
     if (insertError || !product) {
       alert(insertError?.message || "Failed to create product");
@@ -176,7 +180,7 @@ export default function NewProductPage() {
     if (media.type === "video") videoUrls.push(url);
     else imageUrls.push(url);
   } catch (err) {
-    console.error(`Failed to upload ${media.type}:`, err);
+    console.warn(`[products/new] failed to upload ${media.type}:`, err);
   }
 }
 
@@ -187,17 +191,20 @@ const thumbnailUrl =
   thumbnailMedia?.type === "image" ? imageUrls[thumbnailIndex] || imageUrls[0] : undefined;
 
 setUploadProgress("Saving media...");
-const { error: updateError } = await supabase
-  .from("products")
-  .update({
+// PATCH /products/:id — attach the uploaded media to the new product.
+let updateError: { message: string } | null = null;
+try {
+  await apiUpdateProduct(product.id, {
     images: imageUrls,
     videos: videoUrls,
-    thumbnail_url: thumbnailUrl || imageUrls[0] || null,
-  })
-  .eq("id", product.id);
+    thumbnail_url: thumbnailUrl || imageUrls[0] || undefined,
+  });
+} catch (e) {
+  updateError = { message: e instanceof Error ? e.message : "Failed to save media" };
+}
 
 if (updateError) {
-  console.error("Update error:", updateError);
+  console.warn("[products/new] media update failed:", updateError);
   alert("Failed to save media: " + updateError.message);
   setLoading(false);
   setUploadProgress("");

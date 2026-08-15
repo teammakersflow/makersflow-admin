@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function NewCouponPage() {
@@ -27,11 +27,11 @@ export default function NewCouponPage() {
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
-    supabase.from("courses").select("id, title").eq("is_published", true).then(({ data }) => {
+    db.from("courses").select("id, title").eq("is_published", true).then(({ data }) => {
       const seen = new Set<string>();
       setCourses((data ?? []).filter((c: any) => { const k = c.title.trim().toLowerCase(); return seen.has(k) ? false : (seen.add(k), true); }));
     });
-    supabase.from("products").select("id, title").then(({ data }) => {
+    db.from("products").select("id, title").then(({ data }) => {
       const seen = new Set<string>();
       setProducts((data ?? []).filter((p: any) => { const k = p.title.trim().toLowerCase(); return seen.has(k) ? false : (seen.add(k), true); }));
     });
@@ -48,7 +48,7 @@ export default function NewCouponPage() {
 
     setLoading(true);
 
-    const { error } = await supabase.from("coupons").insert({
+    const { error } = await db.from("coupons").insert({
       code: form.code.trim().toUpperCase(),
       description: form.description || null,
       discount_type: form.discount_type,

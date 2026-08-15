@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import CourseWizard from "@/components/courses/CourseWizard";
 import { CourseWithModules } from "@/types/course";
-import { fetchCourseById } from "@/lib/supabase-course";
+import { fetchCourseById } from "@/lib/course-api";
 
 export default function EditCoursePage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function EditCoursePage() {
           setCourse(data);
         }
       } catch (err) {
-        console.error(err);
+        console.warn("[courses/[id]/edit] data error:", err);
         setNotFound(true);
       } finally {
         setLoading(false);

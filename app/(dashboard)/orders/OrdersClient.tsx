@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { updateOrder, updateOrdersBulk, createNotification } from "@/lib/orders-api";
 import {
   Search, Package, Calendar, ChevronDown, ChevronUp, ShoppingCart,
   Clock, CheckCircle2, Truck, AlertOctagon, Download, MapPin,
@@ -65,13 +65,18 @@ async function sendOrderNotification(userId: string, orderId: string, status: st
   const notif = messages[status];
   if (!notif) return;
   try {
-    await supabase.from("notifications").insert({
-      user_id: userId, title: notif.title, body: notif.message,
+    // POST /notifications. `created_at` is deliberately NOT sent: it is not
+    // in CreateNotificationDto and the backend runs ValidationPipe with
+    // forbidNonWhitelisted, so including it returns 400. The server sets it.
+    await createNotification({
+      user_id: userId,
+      title: notif.title,
+      body: notif.message,
       type: status === "cancelled" ? "warning" : "success",
-      is_read: false, link: null, created_at: new Date().toISOString(),
+      is_read: false,
     });
   } catch (e) {
-    // notifications table may not exist — fail silently
+    // Non-critical: the order update already succeeded.
     console.warn("Could not send notification:", e);
   }
 }
@@ -288,10 +293,14 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
 
   const updateStatus = useCallback(async (id: string, status: string, trackingNumber?: string) => {
     const order = orders.find(o => o.id === id);
-    const updateData: Record<string, unknown> = { status };
+    const updateData: { status: string; tracking_number?: string | null } = { status };
     if (trackingNumber !== undefined) updateData.tracking_number = trackingNumber;
-    const { error } = await supabase.from("orders").update(updateData).eq("id", id);
-    if (error) { alert(`Error: ${error.message}`); return; }
+    try {
+      await updateOrder(id, updateData);            // PATCH /orders/:id
+    } catch (e) {
+      alert(`Error: ${e instanceof Error ? e.message : "Update failed"}`);
+      return;
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status, tracking_number: trackingNumber ?? o.tracking_number } : o));
     if (order) await sendOrderNotification(order.user_id, id, status, trackingNumber ?? order.tracking_number);
   }, [orders]);
@@ -304,8 +313,13 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
       : `Cancel order #${id.slice(0,8).toUpperCase()}? Order status will be set to cancelled.`;
     if (!confirm(msg)) return;
     setRefundLoading(id);
-    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", id);
-    if (error) { alert(`Error: ${error.message}`); setRefundLoading(null); return; }
+    try {
+      await updateOrder(id, { status: "cancelled" }); // PATCH /orders/:id
+    } catch (e) {
+      alert(`Error: ${e instanceof Error ? e.message : "Update failed"}`);
+      setRefundLoading(null);
+      return;
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
     if (order) await sendOrderNotification(order.user_id, id, "cancelled");
     setRefundLoading(null);
@@ -316,8 +330,12 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
   }, [orders]);
 
   const handleTrackingUpdate = useCallback(async (id: string, tracking: string) => {
-    const { error } = await supabase.from("orders").update({ tracking_number: tracking || null }).eq("id", id);
-    if (error) { alert(`Error saving tracking: ${error.message}`); return; }
+    try {
+      await updateOrder(id, { tracking_number: tracking || null }); // PATCH /orders/:id
+    } catch (e) {
+      alert(`Error saving tracking: ${e instanceof Error ? e.message : "Save failed"}`);
+      return;
+    }
     setOrders(prev => prev.map(o => o.id === id ? { ...o, tracking_number: tracking || null } : o));
     const order = orders.find(o => o.id === id);
     if (order && tracking && order.status === "shipped") {
@@ -341,17 +359,29 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
     if (!confirm(`Update ${selectedIds.size} orders to "${bulkStatus}"?`)) return;
     setBulkLoading(true);
     const ids = [...selectedIds];
-    const { error } = await supabase.from("orders").update({ status: bulkStatus }).in("id", ids);
-    if (error) { alert(`Error: ${error.message}`); setBulkLoading(false); return; }
-    // Send all notifications in parallel (faster than sequential)
-    await Promise.all(ids.map(id => {
+    // The backend has no bulk-update route, so this PATCHes each order and
+    // reports partial failures instead of silently claiming success.
+    const { succeeded, failed } = await updateOrdersBulk(ids, { status: bulkStatus });
+    if (failed.length > 0) {
+      alert(
+        `${succeeded.length} of ${ids.length} orders updated.\n` +
+        `${failed.length} failed:\n` +
+        failed.slice(0, 5).map(f => `• ${f.id.slice(0, 8)}: ${f.message}`).join("\n")
+      );
+      if (succeeded.length === 0) { setBulkLoading(false); return; }
+    }
+    // Only notify and update rows that actually saved.
+    const savedIds = new Set(succeeded);
+    await Promise.all(succeeded.map(id => {
       const order = orders.find(o => o.id === id);
       return order ? sendOrderNotification(order.user_id, id, bulkStatus) : Promise.resolve();
     }));
-    setOrders(prev => prev.map(o => selectedIds.has(o.id) ? { ...o, status: bulkStatus } : o));
+    setOrders(prev => prev.map(o => savedIds.has(o.id) ? { ...o, status: bulkStatus } : o));
     setSelectedIds(new Set());
     setBulkLoading(false);
-    alert(`${ids.length} orders updated to "${bulkStatus}" and customers notified.`);
+    if (failed.length === 0) {
+      alert(`${succeeded.length} orders updated to "${bulkStatus}" and customers notified.`);
+    }
   };
 
   const exportCSV = () => {

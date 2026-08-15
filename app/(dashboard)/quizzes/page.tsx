@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Plus, Trash2, HelpCircle, ChevronUp, ChevronDown } from "lucide-react";
 
 // Manage quiz questions per lesson. The mobile app reads quiz_questions for a
@@ -33,7 +33,7 @@ export default function QuizzesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase
+    db
       .from("courses")
       .select("id, title")
       .order("title")
@@ -43,7 +43,7 @@ export default function QuizzesPage() {
   useEffect(() => {
     setModules([]); setModuleId(""); setLessons([]); setLessonId(""); setQuestions([]);
     if (!courseId) return;
-    supabase
+    db
       .from("modules")
       .select("id, title")
       .eq("course_id", courseId)
@@ -54,7 +54,7 @@ export default function QuizzesPage() {
   useEffect(() => {
     setLessons([]); setLessonId(""); setQuestions([]);
     if (!moduleId) return;
-    supabase
+    db
       .from("lessons")
       .select("id, title")
       .eq("module_id", moduleId)
@@ -64,11 +64,12 @@ export default function QuizzesPage() {
 
   const loadQuestions = useCallback(async () => {
     if (!lessonId) { setQuestions([]); return; }
-    const { data } = await supabase
+    const { data, error: err } = await db
       .from("quiz_questions")
       .select("id, question_text, options, correct_option_index, position")
       .eq("lesson_id", lessonId)
       .order("position", { ascending: true });
+    setError(err ? err.message : "");
     setQuestions(
       ((data ?? []) as any[]).map((q) => ({
         ...q,
@@ -86,7 +87,7 @@ export default function QuizzesPage() {
     if (opts.length < 2) { setError("At least 2 options are required"); return; }
     if (form.correct >= opts.length) { setError("Correct answer must be one of the options"); return; }
     setSaving(true);
-    const { error: err } = await supabase.from("quiz_questions").insert({
+    const { error: err } = await db.from("quiz_questions").insert({
       lesson_id: lessonId,
       question_text: form.question_text.trim(),
       options: opts,
@@ -101,7 +102,7 @@ export default function QuizzesPage() {
 
   async function removeQuestion(id: string) {
     if (!confirm("Delete this question?")) return;
-    await supabase.from("quiz_questions").delete().eq("id", id);
+    await db.from("quiz_questions").delete().eq("id", id);
     loadQuestions();
   }
 
@@ -110,8 +111,8 @@ export default function QuizzesPage() {
     if (other < 0 || other >= questions.length) return;
     const a = questions[index], b = questions[other];
     await Promise.all([
-      supabase.from("quiz_questions").update({ position: other }).eq("id", a.id),
-      supabase.from("quiz_questions").update({ position: index }).eq("id", b.id),
+      db.from("quiz_questions").update({ position: other }).eq("id", a.id),
+      db.from("quiz_questions").update({ position: index }).eq("id", b.id),
     ]);
     loadQuestions();
   }

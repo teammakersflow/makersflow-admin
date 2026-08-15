@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import DataErrorNotice from "@/components/DataErrorNotice";
 import { useProfile } from "@/hooks/useProfile";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { apiFetch, tokenStore } from "@/lib/api-client";
 import { Settings, LogOut, User, Mail, Shield, Store, CreditCard, FileText, Bell, Save, Check } from "lucide-react";
 
 export default function SettingsPage() {
   const { profile } = useProfile();
   const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
+  const [loadError, setLoadError] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "success"|"error"; text: string } | null>(null);
@@ -31,10 +34,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Load store settings
-    supabase.from("settings").select("key,value").in("key", [
+    db.from("settings").select("key,value").in("key", [
       "store_name","support_email","gst_number","store_phone",
       "shipping_fee","shipping_fee_remote","free_shipping_threshold",
-    ]).then(({ data }) => {
+    ]).then(({ data, error }) => {
+      if (error) setLoadError(error.message);
       const map = Object.fromEntries((data ?? []).map((r: any) => [r.key, r.value]));
       setStoreName(map.store_name ?? "MakersFlow");
       setSupportEmail(map.support_email ?? "");
@@ -49,12 +53,14 @@ export default function SettingsPage() {
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) { setMsg({ type: "error", text: "Passwords don't match" }); return; }
     if (newPassword.length < 6) { setMsg({ type: "error", text: "Minimum 6 characters" }); return; }
-    setSaving(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setSaving(false);
-    if (error) setMsg({ type: "error", text: error.message });
-    else { setMsg({ type: "success", text: "Password updated" }); setNewPassword(""); setConfirmPassword(""); }
-    setTimeout(() => setMsg(null), 4000);
+    // Sign-in is Google-only now, so this app has no password to change.
+    // The backend also exposes no password endpoint. Left visible but inert
+    // rather than silently pretending to succeed.
+    setMsg({
+      type: "error",
+      text: "Passwords no longer apply — this admin panel signs in with Google. Manage the account at myaccount.google.com.",
+    });
+    setTimeout(() => setMsg(null), 6000);
   };
 
   // ── FIX ────────────────────────────────────────────────────────────────────
@@ -66,10 +72,10 @@ export default function SettingsPage() {
   const saveStoreInfo = async () => {
     setSavingStore(true);
     const results = await Promise.all([
-      supabase.from("settings").upsert({ key: "store_name", value: storeName }, { onConflict: "key" }),
-      supabase.from("settings").upsert({ key: "support_email", value: supportEmail }, { onConflict: "key" }),
-      supabase.from("settings").upsert({ key: "gst_number", value: gstNumber }, { onConflict: "key" }),
-      supabase.from("settings").upsert({ key: "store_phone", value: storePhone }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "store_name", value: storeName }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "support_email", value: supportEmail }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "gst_number", value: gstNumber }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "store_phone", value: storePhone }, { onConflict: "key" }),
     ]);
     setSavingStore(false);
 
@@ -86,9 +92,9 @@ export default function SettingsPage() {
   const saveShipping = async () => {
     setSavingShipping(true);
     const results = await Promise.all([
-      supabase.from("settings").upsert({ key: "shipping_fee", value: shippingFee }, { onConflict: "key" }),
-      supabase.from("settings").upsert({ key: "shipping_fee_remote", value: remoteFee }, { onConflict: "key" }),
-      supabase.from("settings").upsert({ key: "free_shipping_threshold", value: freeThreshold }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "shipping_fee", value: shippingFee }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "shipping_fee_remote", value: remoteFee }, { onConflict: "key" }),
+      db.from("settings").upsert({ key: "free_shipping_threshold", value: freeThreshold }, { onConflict: "key" }),
     ]);
     setSavingShipping(false);
 
@@ -104,12 +110,17 @@ export default function SettingsPage() {
     setTimeout(() => setShippingMsg(null), 5000);
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.replace("/login"); };
+  const handleLogout = async () => {
+    try { await apiFetch("/auth/logout", { method: "POST" }); } catch { /* ignore */ }
+    tokenStore.clear();
+    router.replace("/login");
+  };
 
   const inp = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:bg-white focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition";
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <DataErrorNotice message={loadError} />
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
         <p className="text-sm text-gray-500 mt-1">Manage your store, account, and admin preferences</p>
@@ -220,8 +231,9 @@ export default function SettingsPage() {
               { key: "RAZORPAY_KEY_ID", hint: "rzp_live_XXXXXXXXXXXX" },
               { key: "RAZORPAY_KEY_SECRET", hint: "Your secret key" },
               { key: "RAZORPAY_WEBHOOK_SECRET", hint: "From Razorpay webhook settings" },
-              { key: "NEXT_PUBLIC_SUPABASE_URL", hint: "Your Supabase project URL" },
-              { key: "SUPABASE_SERVICE_ROLE_KEY", hint: "Service role key (not anon)" },
+              { key: "NEXT_PUBLIC_API_URL", hint: "NestJS backend base URL" },
+              { key: "NEXT_PUBLIC_GOOGLE_CLIENT_ID", hint: "Google OAuth client ID" },
+              { key: "NEXT_PUBLIC_S3_PUBLIC_BASE_URL", hint: "Public S3/CDN base for uploads" },
             ].map(e => (
               <div key={e.key} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
                 <code className="text-xs font-mono text-gray-700 flex-1">{e.key}</code>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import DataErrorNotice from "@/components/DataErrorNotice";
+import { db } from "@/lib/db";
 import {
   Plus, Trash2, Edit2, Calendar, Percent, Tag, X, Save,
   ToggleLeft, ToggleRight, Users, Clock, Search, Copy, Check,
@@ -19,6 +20,7 @@ export type PromoCode = {
 
 interface PromoCodesClientProps {
   initialPromoCodes: PromoCode[];
+  loadError?: string;
   courses: Array<{ id: string; title: string }>;
   products: Array<{ id: string; title: string }>;
 }
@@ -131,7 +133,7 @@ function SearchableSelect({
   );
 }
 
-export default function PromoCodesClient({ initialPromoCodes, courses, products }: PromoCodesClientProps) {
+export default function PromoCodesClient({ loadError = "", initialPromoCodes, courses, products }: PromoCodesClientProps) {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>(initialPromoCodes);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -196,16 +198,16 @@ export default function PromoCodesClient({ initialPromoCodes, courses, products 
     const basePayload = { code: fullPayload.code, discount_percent: fullPayload.discount_percent, usage_limit: fullPayload.usage_limit, expiry_at: fullPayload.expiry_at, is_active: fullPayload.is_active };
     try {
       if (editingId) {
-        const { data, error } = await supabase.from("promo_codes").update(fullPayload).eq("id", editingId).select().single();
+        const { data, error } = await db.from("promo_codes").update(fullPayload).eq("id", editingId).select().single();
         if (error) {
-          const { data: fb } = await supabase.from("promo_codes").update(basePayload).eq("id", editingId).select().single();
+          const { data: fb } = await db.from("promo_codes").update(basePayload).eq("id", editingId).select().single();
           if (fb) { setPromoCodes(prev => prev.map(c => c.id === editingId ? (fb as PromoCode) : c)); resetForm(); setShowForm(false); }
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => prev.map(c => c.id === editingId ? (data as PromoCode) : c)); resetForm(); setShowForm(false); }
       } else {
-        const { data, error } = await supabase.from("promo_codes").insert({ ...fullPayload, used_count: 0 }).select().single();
+        const { data, error } = await db.from("promo_codes").insert({ ...fullPayload, used_count: 0 }).select().single();
         if (error) {
-          const { data: fb } = await supabase.from("promo_codes").insert({ ...basePayload, used_count: 0 }).select().single();
+          const { data: fb } = await db.from("promo_codes").insert({ ...basePayload, used_count: 0 }).select().single();
           if (fb) { setPromoCodes(prev => [fb as PromoCode, ...prev]); resetForm(); setShowForm(false); }
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => [data as PromoCode, ...prev]); resetForm(); setShowForm(false); }
@@ -214,14 +216,14 @@ export default function PromoCodesClient({ initialPromoCodes, courses, products 
   };
 
   const toggleActive = async (id: string, current: boolean) => {
-    const { error } = await supabase.from("promo_codes").update({ is_active: !current }).eq("id", id);
+    const { error } = await db.from("promo_codes").update({ is_active: !current }).eq("id", id);
     if (!error) setPromoCodes(prev => prev.map(c => c.id === id ? { ...c, is_active: !current } : c));
     else alert(`Error: ${error.message}`);
   };
 
   const deletePromoCode = async (id: string) => {
     if (!confirm("Delete this promo code?")) return;
-    const { error } = await supabase.from("promo_codes").delete().eq("id", id);
+    const { error } = await db.from("promo_codes").delete().eq("id", id);
     if (!error) setPromoCodes(prev => prev.filter(c => c.id !== id));
     else alert(`Error: ${error.message}`);
   };
@@ -232,7 +234,7 @@ export default function PromoCodesClient({ initialPromoCodes, courses, products 
     if (!confirm(`Delete ${expired.length} expired codes?`)) return;
     setDeletingExpired(true);
     const ids = expired.map(c => c.id);
-    const { error } = await supabase.from("promo_codes").delete().in("id", ids);
+    const { error } = await db.from("promo_codes").delete().in("id", ids);
     if (!error) setPromoCodes(prev => prev.filter(c => !ids.includes(c.id)));
     else alert(`Error: ${error.message}`);
     setDeletingExpired(false);
@@ -260,6 +262,7 @@ export default function PromoCodesClient({ initialPromoCodes, courses, products 
 
   return (
     <div className="space-y-6">
+      <DataErrorNotice message={loadError} />
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Plus, Trash2, Paperclip, FileText, Link2, Video, ExternalLink } from "lucide-react";
 
 // Manage per-lesson resources (PDFs, links, videos). Both the mobile app and
@@ -28,14 +28,14 @@ export default function ResourcesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("courses").select("id, title").order("title")
+    db.from("courses").select("id, title").order("title")
       .then(({ data }) => setCourses((data as Course[]) ?? []));
   }, []);
 
   useEffect(() => {
     setModules([]); setModuleId(""); setLessons([]); setLessonId(""); setResources([]);
     if (!courseId) return;
-    supabase.from("modules").select("id, title").eq("course_id", courseId)
+    db.from("modules").select("id, title").eq("course_id", courseId)
       .order("order_index", { ascending: true })
       .then(({ data }) => setModules((data as Module[]) ?? []));
   }, [courseId]);
@@ -43,18 +43,19 @@ export default function ResourcesPage() {
   useEffect(() => {
     setLessons([]); setLessonId(""); setResources([]);
     if (!moduleId) return;
-    supabase.from("lessons").select("id, title").eq("module_id", moduleId)
+    db.from("lessons").select("id, title").eq("module_id", moduleId)
       .order("order_index", { ascending: true })
       .then(({ data }) => setLessons((data as Lesson[]) ?? []));
   }, [moduleId]);
 
   const load = useCallback(async () => {
     if (!lessonId) { setResources([]); return; }
-    const { data } = await supabase
+    const { data, error: err } = await db
       .from("lesson_resources")
       .select("id, title, url, type")
       .eq("lesson_id", lessonId)
       .order("created_at", { ascending: true });
+    setError(err ? err.message : "");
     setResources((data as Resource[]) ?? []);
   }, [lessonId]);
 
@@ -67,7 +68,7 @@ export default function ResourcesPage() {
     if (!url) { setError("URL is required"); return; }
     if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
     setSaving(true);
-    const { error: err } = await supabase.from("lesson_resources").insert({
+    const { error: err } = await db.from("lesson_resources").insert({
       lesson_id: lessonId,
       title: form.title.trim(),
       url,
@@ -81,7 +82,7 @@ export default function ResourcesPage() {
 
   async function remove(id: string) {
     if (!confirm("Delete this resource?")) return;
-    await supabase.from("lesson_resources").delete().eq("id", id);
+    await db.from("lesson_resources").delete().eq("id", id);
     load();
   }
 

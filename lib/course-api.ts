@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
+import { uploadToS3 } from "@/lib/s3Upload";
 import {
   CourseFormData,
   CourseWithModules,
@@ -9,7 +10,7 @@ import {
 // ─── CATEGORIES ───────────────────────────────────────────────────────────────
 
 export async function fetchCategories() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("categories")
     .select("id, name, slug")
     .order("name", { ascending: true });
@@ -25,7 +26,7 @@ export async function fetchCategories() {
 // ─── COURSES ──────────────────────────────────────────────────────────────────
 
 export async function fetchCourses() {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("courses")
     .select("*")
     .order("created_at", { ascending: false });
@@ -42,7 +43,7 @@ export async function fetchCourseById(
   id: string
 ): Promise<CourseWithModules | null> {
   // Fetch course
-  const { data: course, error: courseError } = await supabase
+  const { data: course, error: courseError } = await db
     .from("courses")
     .select("*")
     .eq("id", id)
@@ -54,7 +55,7 @@ export async function fetchCourseById(
   }
 
   // Fetch modules
-  const { data: modules, error: modulesError } = await supabase
+  const { data: modules, error: modulesError } = await db
     .from("modules")
     .select("*")
     .eq("course_id", id)
@@ -67,8 +68,8 @@ export async function fetchCourseById(
 
   // Fetch lessons for each module
   const modulesWithLessons = await Promise.all(
-    (modules || []).map(async (mod) => {
-      const { data: lessons, error: lessonsError } = await supabase
+    (modules || []).map(async (mod: any) => {
+      const { data: lessons, error: lessonsError } = await db
         .from("lessons")
         .select("*")
         .eq("module_id", mod.id)
@@ -87,7 +88,7 @@ export async function fetchCourseById(
 }
 
 export async function createCourse(data: CourseFormData) {
-  const { data: course, error } = await supabase
+  const { data: course, error } = await db
     .from("courses")
     .insert([
       {
@@ -116,7 +117,7 @@ export async function createCourse(data: CourseFormData) {
 }
 
 export async function updateCourse(id: string, data: Partial<CourseFormData>) {
-  const { data: course, error } = await supabase
+  const { data: course, error } = await db
     .from("courses")
     .update({
       title: data.title,
@@ -145,7 +146,7 @@ export async function updateCourse(id: string, data: Partial<CourseFormData>) {
 }
 
 export async function deleteCourse(id: string) {
-  const { error } = await supabase
+  const { error } = await db
     .from("courses")
     .delete()
     .eq("id", id);
@@ -159,7 +160,7 @@ export async function deleteCourse(id: string) {
 // ─── MODULES ──────────────────────────────────────────────────────────────────
 
 export async function createModule(courseId: string, data: ModuleFormData) {
-  const { data: module, error } = await supabase
+  const { data: module, error } = await db
     .from("modules")
     .insert([
       {
@@ -185,7 +186,7 @@ export async function updateModule(
   moduleId: string,
   data: Partial<ModuleFormData>
 ) {
-  const { data: module, error } = await supabase
+  const { data: module, error } = await db
     .from("modules")
     .update({
       title: data.title,
@@ -206,7 +207,7 @@ export async function updateModule(
 }
 
 export async function deleteModule(moduleId: string) {
-  const { error } = await supabase
+  const { error } = await db
     .from("modules")
     .delete()
     .eq("id", moduleId);
@@ -223,7 +224,7 @@ export async function createLesson(
   moduleId: string,
   data: LessonFormData
 ) {
-  const { data: lesson, error } = await supabase
+  const { data: lesson, error } = await db
     .from("lessons")
     .insert([
       {
@@ -253,7 +254,7 @@ export async function updateLesson(
   lessonId: string,
   data: Partial<LessonFormData>
 ) {
-  const { data: lesson, error } = await supabase
+  const { data: lesson, error } = await db
     .from("lessons")
     .update({
       title: data.title,
@@ -278,7 +279,7 @@ export async function updateLesson(
 }
 
 export async function deleteLesson(lessonId: string) {
-  const { error } = await supabase
+  const { error } = await db
     .from("lessons")
     .delete()
     .eq("id", lessonId);
@@ -292,41 +293,15 @@ export async function deleteLesson(lessonId: string) {
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
 
 export async function uploadThumbnail(file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
-  const fileName = `thumbnails/${Date.now()}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from("course-media")
-    .upload(fileName, file, { upsert: true });
-
-  if (error) {
-    console.error("uploadThumbnail error:", error);
-    throw new Error(error.message);
-  }
-
-  const { data } = supabase.storage
-    .from("course-media")
-    .getPublicUrl(fileName);
-
-  return data.publicUrl;
+  // Was Supabase Storage ("course-media" bucket). Now goes through the
+  // backend's presigned S3 upload; see lib/s3Upload.ts for the caveats.
+  return uploadToS3(file, "courses");
 }
 
 export async function uploadVideo(file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
-  const fileName = `videos/${Date.now()}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from("course-assets")
-    .upload(fileName, file, { upsert: true });
-
-  if (error) {
-    console.error("uploadVideo error:", error);
-    throw new Error(error.message);
-  }
-
-  const { data } = supabase.storage
-    .from("course-assets")
-    .getPublicUrl(fileName);
-
-  return data.publicUrl;
+  // Was Supabase Storage ("course-assets" bucket). Same S3 path as above.
+  // NOTE: presigned PUT uploads are a single request, so very large video
+  // files depend on the browser holding the whole upload — there is no
+  // multipart/resumable support on the backend yet.
+  return uploadToS3(file, "courses");
 }

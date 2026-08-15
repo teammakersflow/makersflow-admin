@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { apiFetch, tokenStore } from "@/lib/api-client";
 
 type Profile = {
   id: string;
@@ -16,29 +16,20 @@ export function useProfile() {
 
   useEffect(() => {
     async function loadProfile() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
+      if (!tokenStore.getAccessToken()) {
         setLoading(false);
         return;
       }
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-     console.log(data);
-     console.log(error);
-     
-      if (!error && data) {
-        setProfile(data);
+      try {
+        // GET /auth/me returns { success, message, data: <AuthenticatedUser> }
+        const user = await apiFetch<Profile>("/auth/me");
+        setProfile(user);
+      } catch {
+        // Token invalid/expired past the point apiFetch could refresh it —
+        // leave profile null, the dashboard layout's own check will redirect.
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     loadProfile();

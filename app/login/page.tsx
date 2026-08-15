@@ -1,25 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { tokenStore, ApiError } from "@/lib/api-client";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+// Minimal shape of what the Google Identity Services script puts on window.
+// Loaded via <script src="https://accounts.google.com/gsi/client">.
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin() {
-    setError(""); setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (authError) { setError(authError.message); return; }
-    router.replace("/dashboard");
+  async function handleGoogleCredential(idToken: string) {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.data) {
+        throw new ApiError(json?.message || "Google sign-in failed", res.status);
+      }
+      const { accessToken, refreshToken, user } = json.data;
+      if (user?.role !== "admin") {
+        setError("This account does not have admin access.");
+        setLoading(false);
+        return;
+      }
+      tokenStore.setTokens(accessToken, refreshToken);
+      router.replace("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Google sign-in failed");
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("NEXT_PUBLIC_GOOGLE_CLIENT_ID is not set.");
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.onload = () => {
+      if (!window.google || !buttonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => handleGoogleCredential(response.credential),
+      });
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: "filled_blue",
+        size: "large",
+        width: 320,
+        text: "signin_with",
+      });
+    };
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0f1117] flex">
@@ -48,61 +114,37 @@ export default function LoginPage() {
             ))}
           </div>
         </div>
-        {/* Decorative blobs */}
         <div className="absolute -bottom-20 -right-20 h-72 w-72 rounded-full bg-white/5" />
         <div className="absolute top-20 -right-10 h-48 w-48 rounded-full bg-white/5" />
         <p className="relative z-10 text-blue-200 text-xs">© 2026 MakersFlow. All rights reserved.</p>
       </div>
 
-      {/* Right panel — login form */}
+      {/* Right panel — login */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          {/* Mobile brand */}
           <div className="flex items-center gap-2 mb-10 lg:hidden">
             <div className="h-8 w-8 rounded-lg bg-blue-500 grid place-items-center text-white font-bold text-sm">MF</div>
             <span className="text-white font-bold">MakersFlow Admin</span>
           </div>
 
           <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-          <p className="text-gray-400 text-sm mb-8">Sign in to your admin account</p>
+          <p className="text-gray-400 text-sm mb-8">Sign in with your admin Google account</p>
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-              <input type="email" placeholder="admin@makersflow.com" value={email} autoComplete="email" name="email"
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleLogin()}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-gray-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-            </div>
+            {/* Google renders its own button into this div */}
+            <div ref={buttonRef} className="flex justify-center" />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-              <div className="relative">
-                <input type={showPassword ? "text" : "password"} placeholder="••••••••" value={password} autoComplete="current-password" name="password"
-                  onChange={e => setPassword(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pr-11 text-white text-sm placeholder:text-gray-600 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition" />
-                <button type="button" onClick={() => setShowPassword(s => !s)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition">
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+            {loading && (
+              <div className="flex justify-center">
+                <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               </div>
-            </div>
+            )}
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
                 <p className="text-sm text-red-400">{error}</p>
               </div>
             )}
-
-            <button onClick={handleLogin} disabled={loading || !email || !password}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-all shadow-lg shadow-blue-600/20">
-              {loading ? (
-                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <><LogIn size={16} /> Sign In</>
-              )}
-            </button>
           </div>
         </div>
       </div>

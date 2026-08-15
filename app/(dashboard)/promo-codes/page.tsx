@@ -1,61 +1,93 @@
-import { createClient } from "@supabase/supabase-js";
+"use client";
+
+/**
+ * Was a Server Component using a Supabase service-role key.
+ *
+ * HEADS UP: the `promo_codes` table has NO endpoint on the NestJS backend
+ * (only `coupons` does — a different table). So the promo code list will
+ * come back empty with an error logged until that module is built. The
+ * course/product dropdowns below still populate normally.
+ */
+
+import { useEffect, useState } from "react";
+import { db } from "@/lib/db";
 import PromoCodesClient, { PromoCode } from "./PromoCodesClient";
 
-function createServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
+export default function PromoCodesPage() {
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [courses, setCourses] = useState<Array<{ id: string; title: string }>>([]);
+  const [products, setProducts] = useState<Array<{ id: string; title: string }>>([]);
 
-export const revalidate = 0;
+  useEffect(() => {
+    let cancelled = false;
 
-export default async function PromoCodesPage() {
-  let promoCodes: PromoCode[] = [];
-  let courses: Array<{ id: string; title: string }> = [];
-  let products: Array<{ id: string; title: string }> = [];
+    (async () => {
+      try {
+        const [promoCodesRes, coursesRes, productsRes] = await Promise.all([
+          db.from("promo_codes").select("*").order("created_at", { ascending: false }),
+          db.from("courses").select("id, title").eq("is_published", true),
+          db.from("products").select("id, title"),
+        ]);
 
-  try {
-    const supabaseServer = createServerClient();
-    const [promoCodesRes, coursesRes, productsRes] = await Promise.all([
-      supabaseServer.from("promo_codes").select("*").order("created_at", { ascending: false }),
-      supabaseServer.from("courses").select("id, title").eq("is_published", true),
-      supabaseServer.from("products").select("id, title"),
-    ]);
+        if (cancelled) return;
 
-    if (!promoCodesRes.error) {
-      promoCodes = (promoCodesRes.data as PromoCode[]) ?? [];
-    }
+        if (promoCodesRes.error) {
+          console.warn("Promo codes unavailable:", promoCodesRes.error.message);
+          setLoadError(promoCodesRes.error.message);
+        } else {
+          setPromoCodes((promoCodesRes.data as PromoCode[]) ?? []);
+        }
 
-    if (coursesRes.data) {
-      // FIX: Deduplicate courses by title — keep only first occurrence of each title
-      const seenTitles = new Set<string>();
-      courses = coursesRes.data.filter((c: { id: string; title: string }) => {
-        const key = c.title.trim().toLowerCase();
-        if (seenTitles.has(key)) return false;
-        seenTitles.add(key);
-        return true;
-      });
-    }
+        if (coursesRes.data) {
+          // Deduplicate courses by title — keep first occurrence of each.
+          const seenTitles = new Set<string>();
+          setCourses(
+            coursesRes.data.filter((c: { id: string; title: string }) => {
+              const key = String(c.title).trim().toLowerCase();
+              if (seenTitles.has(key)) return false;
+              seenTitles.add(key);
+              return true;
+            })
+          );
+        }
 
-    if (productsRes.data) {
-      // FIX: Deduplicate products by title — keep only first occurrence of each title
-      const seenTitles = new Set<string>();
-      products = productsRes.data.filter((p: { id: string; title: string }) => {
-        const key = p.title.trim().toLowerCase();
-        if (seenTitles.has(key)) return false;
-        seenTitles.add(key);
-        return true;
-      });
-    }
-  } catch (err) {
-    console.warn("Unexpected error fetching promo codes data:", err);
+        if (productsRes.data) {
+          // Deduplicate products by title — keep first occurrence of each.
+          const seenTitles = new Set<string>();
+          setProducts(
+            productsRes.data.filter((p: { id: string; title: string }) => {
+              const key = String(p.title).trim().toLowerCase();
+              if (seenTitles.has(key)) return false;
+              seenTitles.add(key);
+              return true;
+            })
+          );
+        }
+      } catch (err) {
+        console.warn("Unexpected error fetching promo codes data:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-7xl">
-      <PromoCodesClient initialPromoCodes={promoCodes} courses={courses} products={products} />
+      <PromoCodesClient initialPromoCodes={promoCodes} courses={courses} products={products} loadError={loadError} />
     </div>
   );
 }

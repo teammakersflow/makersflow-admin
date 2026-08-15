@@ -9,7 +9,7 @@ import {
   RefreshCw, BarChart3, Users, Settings, UserCircle2,
   LogOut, ChevronRight, Truck, Megaphone, Star, HelpCircle, Paperclip, StickyNote
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { apiFetch, tokenStore } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
 
 const NAV = [
@@ -77,8 +77,15 @@ export default function Sidebar() {
   const router = useRouter();
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    router.replace("/login");
+    try {
+      // Best-effort: invalidates the refresh token server-side.
+      await apiFetch("/auth/logout", { method: "POST" });
+    } catch {
+      // Ignore — still clear locally so the user is never stuck signed in.
+    } finally {
+      tokenStore.clear();
+      router.replace("/login");
+    }
   }
 
   function isActive(href: string) {

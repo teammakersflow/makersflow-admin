@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import {
   Plus, Trash2, ToggleLeft, ToggleRight, Megaphone, Calendar, Link2, X,
 } from "lucide-react";
@@ -32,11 +32,12 @@ export default function PromotionsPage() {
   const [error, setError] = useState("");
 
   const load = () =>
-    supabase
+    db
       .from("promotions")
       .select("*")
       .order("display_order", { ascending: true, nullsFirst: false })
-      .then(({ data }) => {
+      .then(({ data, error: err }) => {
+        if (err) setError(err.message);
         setPromos((data as Promotion[]) ?? []);
         setLoading(false);
       });
@@ -49,7 +50,7 @@ export default function PromotionsPage() {
     // BUG FIX: errors were ignored and the UI updated optimistically — if RLS
     // rejected the write, the admin SAW the banner toggled/deleted but the
     // database (and therefore the app) never changed. Now we surface failures.
-    const { error: err } = await supabase
+    const { error: err } = await db
       .from("promotions")
       .update({ is_active: !current })
       .eq("id", id);
@@ -63,7 +64,7 @@ export default function PromotionsPage() {
 
   const deletePromo = async (id: number) => {
     if (!confirm("Delete this banner? This cannot be undone.")) return;
-    const { error: err } = await supabase.from("promotions").delete().eq("id", id);
+    const { error: err } = await db.from("promotions").delete().eq("id", id);
     if (err) {
       alert(`Could not delete banner: ${err.message}\n\nRun ADMIN_CONNECT.sql (admin RLS policies) if this says "row-level security".`);
       load();
@@ -79,7 +80,7 @@ export default function PromotionsPage() {
     }
     setSaving(true);
     setError("");
-    const { error: err } = await supabase.from("promotions").insert({
+    const { error: err } = await db.from("promotions").insert({
       title: form.title.trim(),
       subtitle: form.subtitle.trim() || null,
       image_url: form.image_url.trim() || null,

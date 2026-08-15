@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/sidebar";
 import { useProfile } from "@/hooks/useProfile";
-import { supabase } from "../../lib/supabase";
+import { apiFetch, tokenStore } from "@/lib/api-client";
 import { Bell, Search, X, BookOpen, Package, ShoppingCart, Tag } from "lucide-react";
 
 type SearchResult = {
@@ -23,66 +23,83 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { profile } = useProfile();
 
   // ── Access control: only admins may use this dashboard ──────────────────
-  // RLS is the hard enforcement layer (is_admin() policies in the DB); this
-  // guard keeps non-admin accounts out of the UI entirely.
+  // NOTE: the backend's CRUD routes (courses/products/orders/...) are not
+  // yet guarded with @UseGuards(JwtAuthGuard) — this client-side check is
+  // currently the ONLY thing stopping a non-admin from using the UI. Ask
+  // your friend to add auth guards + role checks server-side; a client
+  // check alone is not real security.
   const [accessChecked, setAccessChecked] = useState(false);
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth?.user) {
+      if (!tokenStore.getAccessToken()) {
         router.replace("/login");
         return;
       }
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", auth.user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if ((prof as { role?: string } | null)?.role !== "admin") {
-        await supabase.auth.signOut();
-        alert("This account does not have admin access.");
+      try {
+        const user = await apiFetch<{ role: string }>("/auth/me");
+        if (cancelled) return;
+        if (user?.role !== "admin") {
+          tokenStore.clear();
+          alert("This account does not have admin access.");
+          router.replace("/login");
+          return;
+        }
+        setAccessChecked(true);
+      } catch {
+        if (cancelled) return;
+        tokenStore.clear();
         router.replace("/login");
-        return;
       }
-      setAccessChecked(true);
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Notification count
+  // Notification count: pending orders + failed payments.
+  // TODO(backend): /orders and /payments have no ?status= filter yet, so
+  // this pulls everything and counts client-side. Ask your friend to add
+  // query filters — this will get slow once order volume grows.
   useEffect(() => {
-    // Show bell badge for pending orders + failed payments
+    if (!accessChecked) return;
     Promise.all([
-      supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("payments").select("id", { count: "exact", head: true }).eq("status", "failed"),
-    ]).then(([{ count: o }, { count: p }]) => setNotifCount((o ?? 0) + (p ?? 0)));
-  }, []);
+      apiFetch<any[]>("/orders").catch(() => []),
+      apiFetch<any[]>("/payments").catch(() => []),
+    ]).then(([orders, payments]) => {
+      const pendingOrders = orders.filter((o) => o.status === "pending").length;
+      const failedPayments = payments.filter((p) => p.status === "failed").length;
+      setNotifCount(pendingOrders + failedPayments);
+    });
+  }, [accessChecked]);
 
-  // Global search with debounce
+  // Global search with debounce.
+  // TODO(backend): same story — /courses, /products, /coupons have no
+  // ?search= support, so this filters client-side over the full list.
   useEffect(() => {
+    if (!accessChecked) return;
     if (search.trim().length < 2) { setResults([]); setShowResults(false); return; }
     const t = setTimeout(async () => {
       setSearching(true);
-      const q = search.trim();
-      const [{ data: courses }, { data: products }, { data: promoCodes }] = await Promise.all([
-        supabase.from("courses").select("id, title, category").ilike("title", `%${q}%`).limit(4),
-        supabase.from("products").select("id, title, price").ilike("title", `%${q}%`).limit(4),
-        supabase.from("coupons").select("id, code, discount_type, discount_value").ilike("code", `%${q}%`).limit(3),
+      const q = search.trim().toLowerCase();
+      const [courses, products, coupons] = await Promise.all([
+        apiFetch<any[]>("/courses").catch(() => []),
+        apiFetch<any[]>("/products").catch(() => []),
+        apiFetch<any[]>("/coupons").catch(() => []),
       ]);
       const r: SearchResult[] = [
-        ...(courses ?? []).map((c: any) => ({ type: "course" as const, id: c.id, title: c.title, sub: c.category, href: `/courses/${c.id}` })),
-        ...(products ?? []).map((p: any) => ({ type: "product" as const, id: p.id, title: p.title, sub: `₹${p.price}`, href: `/products/${p.id}` })),
-        ...(promoCodes ?? []).map((c: any) => ({ type: "coupon" as const, id: c.id, title: c.code, sub: c.discount_type === "flat" ? `₹${c.discount_value} off` : `${c.discount_value}% off`, href: `/coupons` })),
+        ...courses.filter((c) => c.title?.toLowerCase().includes(q)).slice(0, 4)
+          .map((c) => ({ type: "course" as const, id: c.id, title: c.title, sub: c.category, href: `/courses/${c.id}` })),
+        ...products.filter((p) => p.title?.toLowerCase().includes(q)).slice(0, 4)
+          .map((p) => ({ type: "product" as const, id: p.id, title: p.title, sub: `₹${p.price}`, href: `/products/${p.id}` })),
+        ...coupons.filter((c) => c.code?.toLowerCase().includes(q)).slice(0, 3)
+          .map((c) => ({ type: "coupon" as const, id: c.id, title: c.code, sub: c.discount_type === "flat" ? `₹${c.discount_value} off` : `${c.discount_value}% off`, href: `/coupons` })),
       ];
       setResults(r);
       setShowResults(true);
       setSearching(false);
     }, 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, accessChecked]);
 
   const ICONS: Record<string, typeof BookOpen> = { course: BookOpen, product: Package, order: ShoppingCart, coupon: Tag };
   const TYPE_COLORS: Record<string, string> = {
@@ -90,7 +107,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     order: "bg-purple-50 text-purple-600", coupon: "bg-pink-50 text-pink-600",
   };
 
-  // Hold rendering until the admin check passes
   if (!accessChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -104,9 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
         <header className="sticky top-0 z-40 h-14 flex items-center justify-between border-b border-gray-200 bg-white px-6 gap-4">
-          {/* Global Search */}
           <div className="relative flex-1 max-w-lg">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input ref={inputRef} type="text"
@@ -121,7 +135,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <X size={14} />
               </button>
             )}
-            {/* Results dropdown */}
             {showResults && (
               <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden max-h-72 overflow-y-auto">
                 {searching ? (
@@ -146,7 +159,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
 
-          {/* Right */}
           <div className="flex items-center gap-2">
             <button onClick={() => router.push("/notifications")}
               className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition">
@@ -171,7 +183,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        {/* Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-6 py-7">
             {children}

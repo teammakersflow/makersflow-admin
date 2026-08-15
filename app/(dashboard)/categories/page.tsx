@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Plus, Edit2, Trash2, Save, X, Tag } from "lucide-react";
 
 type Category = {
@@ -26,11 +26,11 @@ export default function CategoriesPage() {
   useEffect(() => {
     async function loadCategories() {
       const [{ data: cats, error }, { data: products }] = await Promise.all([
-        supabase.from("categories").select("*").order("name", { ascending: true }),
-        supabase.from("products").select("category"),
+        db.from("categories").select("*").order("name", { ascending: true }),
+        db.from("products").select("category"),
       ]);
 
-      if (error) { console.error(error); setLoading(false); return; }
+      if (error) { console.warn("[categories] data error:", error); setLoading(false); return; }
 
       // Count products per category name
       const countMap: Record<string, number> = {};
@@ -38,7 +38,7 @@ export default function CategoriesPage() {
         if (p.category) countMap[p.category] = (countMap[p.category] ?? 0) + 1;
       });
 
-      const withCounts = (cats ?? []).map(cat => ({
+      const withCounts = (cats ?? []).map((cat: any) => ({
         ...cat,
         count: countMap[cat.name] ?? 0,
       }));
@@ -83,13 +83,13 @@ export default function CategoriesPage() {
 
     if (editingId) {
       // UPDATE
-      const { error } = await supabase
+      const { error } = await db
         .from("categories")
         .update({ name: form.name, slug: form.slug })
         .eq("id", editingId);
 
       if (error) {
-        console.error(error);
+        console.warn("[categories] data error:", error);
         alert("Failed to update category.");
       } else {
         setCategories((prev) =>
@@ -101,14 +101,14 @@ export default function CategoriesPage() {
       }
     } else {
       // CREATE
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("categories")
         .insert({ name: form.name, slug: form.slug })
         .select()
         .single();
 
       if (error) {
-        console.error(error);
+        console.warn("[categories] data error:", error);
         alert("Failed to create category.");
       } else {
         setCategories((prev) => [...prev, data]);
@@ -128,10 +128,10 @@ export default function CategoriesPage() {
 
     setDeletingId(id);
 
-    const { error } = await supabase.from("categories").delete().eq("id", id);
+    const { error } = await db.from("categories").delete().eq("id", id);
 
     if (error) {
-      console.error(error);
+      console.warn("[categories] data error:", error);
       alert("Failed to delete category.");
     } else {
       setCategories((prev) => prev.filter((c) => c.id !== id));

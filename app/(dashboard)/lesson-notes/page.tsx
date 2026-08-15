@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { Plus, Trash2, StickyNote, ChevronUp, ChevronDown } from "lucide-react";
 
 // Author "Key Learning Points" per lesson — shown in the app's Notes tab
@@ -25,14 +25,14 @@ export default function LessonNotesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("courses").select("id, title").order("title")
+    db.from("courses").select("id, title").order("title")
       .then(({ data }) => setCourses((data as Course[]) ?? []));
   }, []);
 
   useEffect(() => {
     setModules([]); setModuleId(""); setLessons([]); setLessonId(""); setNotes([]);
     if (!courseId) return;
-    supabase.from("modules").select("id, title").eq("course_id", courseId)
+    db.from("modules").select("id, title").eq("course_id", courseId)
       .order("order_index", { ascending: true })
       .then(({ data }) => setModules((data as Module[]) ?? []));
   }, [courseId]);
@@ -40,18 +40,19 @@ export default function LessonNotesPage() {
   useEffect(() => {
     setLessons([]); setLessonId(""); setNotes([]);
     if (!moduleId) return;
-    supabase.from("lessons").select("id, title").eq("module_id", moduleId)
+    db.from("lessons").select("id, title").eq("module_id", moduleId)
       .order("order_index", { ascending: true })
       .then(({ data }) => setLessons((data as Lesson[]) ?? []));
   }, [moduleId]);
 
   const load = useCallback(async () => {
     if (!lessonId) { setNotes([]); return; }
-    const { data } = await supabase
+    const { data, error: err } = await db
       .from("lesson_notes")
       .select("id, content, position")
       .eq("lesson_id", lessonId)
       .order("position", { ascending: true });
+    setError(err ? err.message : "");
     setNotes((data as Note[]) ?? []);
   }, [lessonId]);
 
@@ -61,7 +62,7 @@ export default function LessonNotesPage() {
     setError("");
     if (!content.trim()) { setError("Note text is required"); return; }
     setSaving(true);
-    const { error: err } = await supabase.from("lesson_notes").insert({
+    const { error: err } = await db.from("lesson_notes").insert({
       lesson_id: lessonId,
       content: content.trim(),
       position: notes.length,
@@ -74,7 +75,7 @@ export default function LessonNotesPage() {
 
   async function removeNote(id: string) {
     if (!confirm("Delete this note?")) return;
-    await supabase.from("lesson_notes").delete().eq("id", id);
+    await db.from("lesson_notes").delete().eq("id", id);
     load();
   }
 
@@ -83,8 +84,8 @@ export default function LessonNotesPage() {
     if (other < 0 || other >= notes.length) return;
     const a = notes[index], b = notes[other];
     await Promise.all([
-      supabase.from("lesson_notes").update({ position: other }).eq("id", a.id),
-      supabase.from("lesson_notes").update({ position: index }).eq("id", b.id),
+      db.from("lesson_notes").update({ position: other }).eq("id", a.id),
+      db.from("lesson_notes").update({ position: index }).eq("id", b.id),
     ]);
     load();
   }

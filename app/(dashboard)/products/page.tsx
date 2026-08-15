@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { fetchProducts, fetchProduct, deleteProduct } from "@/lib/products-api";
 import { Search, Plus, Edit2, Trash2, Eye, Package } from "lucide-react";
 import { deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,9 +40,12 @@ export default function ProductsPage() {
   useEffect(() => {
     async function loadProducts() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("products").select("*").order("created_at", { ascending: false });
-      if (!error) setProducts(data || []);
+      try {
+        const list = await fetchProducts();          // GET /products
+        setProducts(list as unknown as Product[]);
+      } catch (e) {
+        console.warn("[products] could not load products:", e);
+      }
       setLoading(false);
     }
     loadProducts();
@@ -55,10 +58,14 @@ export default function ProductsPage() {
     if (!confirm("Delete this product? This cannot be undone.")) return;
     setDeletingId(id);
     try {
-      const { data: product } = await supabase.from("products")
-        .select("thumbnail_url, images, videos").eq("id", id).single();
-      const { error } = await supabase.from("products").delete().eq("id", id);
-      if (error) { alert("Failed to delete. Please try again."); return; }
+      // Read the media URLs first — after DELETE they are gone.
+      const product = await fetchProduct(id);        // GET /products/:id
+      try {
+        await deleteProduct(id);                     // DELETE /products/:id
+      } catch (err) {
+        alert(`Failed to delete: ${err instanceof Error ? err.message : "unknown error"}`);
+        return;
+      }
       setProducts(prev => prev.filter(p => p.id !== id));
       if (product) {
         const urls = [...(product.images || []), ...(product.videos || [])];
@@ -67,7 +74,7 @@ export default function ProductsPage() {
           if (key) await deleteFromS3(key);
         }
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.warn("[products] data error:", e); }
     finally { setDeletingId(null); }
   };
 

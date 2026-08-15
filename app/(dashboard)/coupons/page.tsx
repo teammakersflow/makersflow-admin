@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import {
   Plus, Edit2, Trash2, ToggleLeft, ToggleRight, Calendar, Tag,
   BarChart2, Search, Copy, Check, Download, Users, Clock,
@@ -125,9 +125,9 @@ export default function CouponsPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from("coupons").select("*").order("created_at", { ascending: false }),
-      supabase.from("courses").select("id, title").eq("is_published", true),
-      supabase.from("products").select("id, title"),
+      db.from("coupons").select("*").order("created_at", { ascending: false }),
+      db.from("courses").select("id, title").eq("is_published", true),
+      db.from("products").select("id, title"),
     ]).then(([c, co, p]) => {
       setCoupons((c.data as Coupon[]) ?? []);
       // Deduplicate by title
@@ -183,11 +183,11 @@ export default function CouponsPage() {
     };
     try {
       if (editingId) {
-        const { data, error } = await supabase.from("coupons").update(payload).eq("id", editingId).select().single();
+        const { data, error } = await db.from("coupons").update(payload).eq("id", editingId).select().single();
         if (error) alert(error.message);
         else { setCoupons(prev => prev.map(c => c.id === editingId ? (data as Coupon) : c)); resetForm(); setShowForm(false); }
       } else {
-        const { data, error } = await supabase.from("coupons").insert({ ...payload, used_count: 0 }).select().single();
+        const { data, error } = await db.from("coupons").insert({ ...payload, used_count: 0 }).select().single();
         if (error) alert(error.message);
         else { setCoupons(prev => [data as Coupon, ...prev]); resetForm(); setShowForm(false); }
       }
@@ -195,13 +195,13 @@ export default function CouponsPage() {
   };
 
   const toggleActive = async (id: string, current: boolean) => {
-    const { error } = await supabase.from("coupons").update({ is_active: !current }).eq("id", id);
+    const { error } = await db.from("coupons").update({ is_active: !current }).eq("id", id);
     if (!error) setCoupons(prev => prev.map(c => c.id === id ? { ...c, is_active: !current } : c));
   };
 
   const deleteCoupon = async (id: string) => {
     if (!confirm("Delete this coupon? This cannot be undone.")) return;
-    const { error } = await supabase.from("coupons").delete().eq("id", id);
+    const { error } = await db.from("coupons").delete().eq("id", id);
     if (!error) setCoupons(prev => prev.filter(c => c.id !== id));
     else alert(error.message);
   };
