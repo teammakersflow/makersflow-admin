@@ -95,9 +95,26 @@ export type ProductPayload = {
 
 /** Keys CreateProductDto/UpdateProductDto actually accept today. */
 const DTO_FIELDS = new Set([
-  "title", "slug", "description", "price", "original_price", "category",
-  "subcategory", "thumbnail_url", "images", "videos", "features",
-  "in_stock", "stock", "status", "is_course", "course_id",
+  "title",
+  "slug",
+  "description",
+  "price",
+  "original_price",
+  "category",
+  "subcategory",
+  "thumbnail_url",
+  "images",
+  "videos",
+  "features",
+  "in_stock",
+  "stock",
+  "status",
+  "is_course",
+  "course_id",
+  "gst_rate",
+  "stock_quantity",
+  "weight_kg",
+  "hsn_code",
 ]);
 
 /**
