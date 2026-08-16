@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import DataErrorNotice from "@/components/DataErrorNotice";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import {
   Plus, Trash2, Edit2, Calendar, Percent, Tag, X, Save,
   ToggleLeft, ToggleRight, Users, Clock, Search, Copy, Check,
@@ -198,16 +198,16 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
     const basePayload = { code: fullPayload.code, discount_percent: fullPayload.discount_percent, usage_limit: fullPayload.usage_limit, expiry_at: fullPayload.expiry_at, is_active: fullPayload.is_active };
     try {
       if (editingId) {
-        const { data, error } = await db.from("promo_codes").update(fullPayload).eq("id", editingId).select().single();
+        const { data, error } = await backendApi.endpoint("/promo-codes").update(fullPayload).eq("id", editingId).select().single();
         if (error) {
-          const { data: fb } = await db.from("promo_codes").update(basePayload).eq("id", editingId).select().single();
+          const { data: fb } = await backendApi.endpoint("/promo-codes").update(basePayload).eq("id", editingId).select().single();
           if (fb) { setPromoCodes(prev => prev.map(c => c.id === editingId ? (fb as PromoCode) : c)); resetForm(); setShowForm(false); }
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => prev.map(c => c.id === editingId ? (data as PromoCode) : c)); resetForm(); setShowForm(false); }
       } else {
-        const { data, error } = await db.from("promo_codes").insert({ ...fullPayload, used_count: 0 }).select().single();
+        const { data, error } = await backendApi.endpoint("/promo-codes").insert({ ...fullPayload, used_count: 0 }).select().single();
         if (error) {
-          const { data: fb } = await db.from("promo_codes").insert({ ...basePayload, used_count: 0 }).select().single();
+          const { data: fb } = await backendApi.endpoint("/promo-codes").insert({ ...basePayload, used_count: 0 }).select().single();
           if (fb) { setPromoCodes(prev => [fb as PromoCode, ...prev]); resetForm(); setShowForm(false); }
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => [data as PromoCode, ...prev]); resetForm(); setShowForm(false); }
@@ -216,14 +216,14 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
   };
 
   const toggleActive = async (id: string, current: boolean) => {
-    const { error } = await db.from("promo_codes").update({ is_active: !current }).eq("id", id);
+    const { error } = await backendApi.endpoint("/promo-codes").update({ is_active: !current }).eq("id", id);
     if (!error) setPromoCodes(prev => prev.map(c => c.id === id ? { ...c, is_active: !current } : c));
     else alert(`Error: ${error.message}`);
   };
 
   const deletePromoCode = async (id: string) => {
     if (!confirm("Delete this promo code?")) return;
-    const { error } = await db.from("promo_codes").delete().eq("id", id);
+    const { error } = await backendApi.endpoint("/promo-codes").delete().eq("id", id);
     if (!error) setPromoCodes(prev => prev.filter(c => c.id !== id));
     else alert(`Error: ${error.message}`);
   };
@@ -234,7 +234,7 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
     if (!confirm(`Delete ${expired.length} expired codes?`)) return;
     setDeletingExpired(true);
     const ids = expired.map(c => c.id);
-    const { error } = await db.from("promo_codes").delete().in("id", ids);
+    const { error } = await backendApi.endpoint("/promo-codes").delete().in("id", ids);
     if (!error) setPromoCodes(prev => prev.filter(c => !ids.includes(c.id)));
     else alert(`Error: ${error.message}`);
     setDeletingExpired(false);

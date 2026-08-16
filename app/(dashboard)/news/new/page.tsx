@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { uploadToS3 } from "@/lib/s3Upload";
 import { ArrowLeft, Save, Upload, X } from "lucide-react";
 
@@ -61,7 +61,7 @@ export default function NewArticlePage() {
     if (!thumbnailFile) return null;
     setUploading(true);
     try {
-      // Was Supabase Storage. Now uses the backend's presigned S3 upload.
+      // Was the previous backend Storage. Now uses the backend's presigned S3 upload.
       const publicUrl = await uploadToS3(thumbnailFile, "news");
       setUploading(false);
       return publicUrl;
@@ -83,7 +83,7 @@ export default function NewArticlePage() {
     // Upload thumbnail first if selected
     const thumbnailUrl = await uploadThumbnail();
 
-    const { error } = await db.from("news").insert({
+    const { error } = await backendApi.endpoint("/news").insert({
       title,
       slug,
       content,

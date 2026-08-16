@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Was a Server Component using a Supabase service-role key. Now fetches on
+ * Was a Server Component using a the previous backend service-role key. Now fetches on
  * the client (the JWT lives in the browser). Data logic unchanged.
  */
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import PaymentsClient, { Payment } from "./PaymentsClient";
 
 export default function PaymentsPage() {
@@ -19,8 +19,8 @@ export default function PaymentsPage() {
       let result: Payment[] = [];
       try {
         const [paymentsRes, profilesRes] = await Promise.all([
-          db.from("payments").select("*").order("created_at", { ascending: false }),
-          db.from("profiles").select("id, email, full_name"),
+          backendApi.endpoint("/payments").select("*").order("created_at", { ascending: false }),
+          backendApi.endpoint("/users").select("id, email, full_name"),
         ]);
 
         if (paymentsRes.error) {

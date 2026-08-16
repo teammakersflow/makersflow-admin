@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Calendar, Edit2 } from "lucide-react";
 
 type Article = {
@@ -22,8 +22,8 @@ export default function ViewArticlePage() {
 
   useEffect(() => {
     async function fetchArticle() {
-      const { data, error } = await db
-        .from("news")
+      const { data, error } = await backendApi
+        .endpoint("/news")
         .select("*")
         .eq("id", id)
         .single();

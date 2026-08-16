@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { useProfile } from "@/hooks/useProfile";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { apiFetch, tokenStore } from "@/lib/api-client";
 import { Settings, LogOut, User, Mail, Shield, Store, CreditCard, FileText, Bell, Save, Check } from "lucide-react";
 
@@ -34,7 +34,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     // Load store settings
-    db.from("settings").select("key,value").in("key", [
+    backendApi.endpoint("/settings").select("key,value").in("key", [
       "store_name","support_email","gst_number","store_phone",
       "shipping_fee","shipping_fee_remote","free_shipping_threshold",
     ]).then(({ data, error }) => {
@@ -72,10 +72,10 @@ export default function SettingsPage() {
   const saveStoreInfo = async () => {
     setSavingStore(true);
     const results = await Promise.all([
-      db.from("settings").upsert({ key: "store_name", value: storeName }, { onConflict: "key" }),
-      db.from("settings").upsert({ key: "support_email", value: supportEmail }, { onConflict: "key" }),
-      db.from("settings").upsert({ key: "gst_number", value: gstNumber }, { onConflict: "key" }),
-      db.from("settings").upsert({ key: "store_phone", value: storePhone }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "store_name", value: storeName }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "support_email", value: supportEmail }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "gst_number", value: gstNumber }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "store_phone", value: storePhone }, { onConflict: "key" }),
     ]);
     setSavingStore(false);
 
@@ -92,9 +92,9 @@ export default function SettingsPage() {
   const saveShipping = async () => {
     setSavingShipping(true);
     const results = await Promise.all([
-      db.from("settings").upsert({ key: "shipping_fee", value: shippingFee }, { onConflict: "key" }),
-      db.from("settings").upsert({ key: "shipping_fee_remote", value: remoteFee }, { onConflict: "key" }),
-      db.from("settings").upsert({ key: "free_shipping_threshold", value: freeThreshold }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "shipping_fee", value: shippingFee }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "shipping_fee_remote", value: remoteFee }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key: "free_shipping_threshold", value: freeThreshold }, { onConflict: "key" }),
     ]);
     setSavingShipping(false);
 

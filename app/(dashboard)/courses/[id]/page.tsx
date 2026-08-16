@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Users, DollarSign, BookOpen, BarChart2, Edit, TrendingUp, Clock } from "lucide-react";
 
 type Course = {
@@ -50,24 +50,24 @@ export default function ViewCoursePage() {
         { data: purchases },
         { data: recentEnroll },
       ] = await Promise.all([
-        db.from("courses").select("*").eq("id", id).maybeSingle(),
+        backendApi.endpoint("/courses").select("*").eq("id", id).maybeSingle(),
 
         // All enrollments for this course (to show real total)
-        db
-          .from("enrollments")
+        backendApi
+          .endpoint("/enrollments")
           .select("id, enrolled_at, payment_status, completed_at")
           .eq("course_id", id),
 
         // Paid purchases for revenue
-        db
-          .from("course_purchases")
+        backendApi
+          .endpoint("/course-purchases")
           .select("amount_paid")
           .eq("course_id", id)
           .eq("status", "active"),
 
         // Recent PAID enrollments — get enrollment rows first
-        db
-          .from("enrollments")
+        backendApi
+          .endpoint("/enrollments")
           .select("id, user_id, enrolled_at, payment_status, completed_at")
           .eq("course_id", id)
           .eq("payment_status", "completed")
@@ -97,8 +97,8 @@ export default function ViewCoursePage() {
       let enrichedEnrollments: EnrollmentRow[] = (recentEnroll ?? []) as unknown as EnrollmentRow[];
       const userIds = (recentEnroll ?? []).map((e: any) => e.user_id).filter(Boolean);
       if (userIds.length > 0) {
-        const { data: profilesData } = await db
-          .from("profiles")
+        const { data: profilesData } = await backendApi
+          .endpoint("/users")
           .select("id, email, full_name")
           .in("id", userIds);
         const profileMap: Record<string, { email: string; full_name: string | null }> = {};

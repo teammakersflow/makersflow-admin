@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Search, Plus, Edit2, Trash2, Calendar, Eye } from "lucide-react";
 
 type Article = {
@@ -25,8 +25,8 @@ export default function NewsPage() {
 
   useEffect(() => {
     async function loadArticles() {
-      const { data, error } = await db
-        .from("news")
+      const { data, error } = await backendApi
+        .endpoint("/news")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -58,7 +58,7 @@ export default function NewsPage() {
 
     setDeletingId(id);
 
-    const { error } = await db.from("news").delete().eq("id", id);
+    const { error } = await backendApi.endpoint("/news").delete().eq("id", id);
 
     if (error) {
       console.error("Delete error:", error);

@@ -1,8 +1,8 @@
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 
 export async function fetchAllUsers() {
-  const { data, error } = await db
-    .from('profiles')
+  const { data, error } = await backendApi
+    .endpoint("/users")
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -12,13 +12,13 @@ export async function fetchAllUsers() {
 
 export async function fetchUserDetail(userId: string) {
   const [profileRes, enrollmentsRes, purchasesRes] = await Promise.all([
-    db.from('profiles').select('*').eq('id', userId).single(),
-    db
-      .from('enrollments')
+    backendApi.endpoint("/users").select('*').eq('id', userId).single(),
+    backendApi
+      .endpoint("/enrollments")
       .select('*, course:courses(id, title, thumbnail_url)')
       .eq('user_id', userId),
-    db
-      .from('orders')
+    backendApi
+      .endpoint("/orders")
       .select('*, product:products(id, name, price)')
       .eq('user_id', userId),
   ]);

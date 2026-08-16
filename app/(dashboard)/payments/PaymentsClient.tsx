@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Search, TrendingUp, CreditCard, XCircle, AlertCircle, ChevronDown, ChevronUp, Download, RefreshCw, CheckCircle } from "lucide-react";
 
 export type Payment = {
@@ -66,8 +66,8 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
     setLoading(true);
     try {
       // Try payments table first (full columns)
-      const { data: paymentsData, error: paymentsError } = await db
-        .from("payments")
+      const { data: paymentsData, error: paymentsError } = await backendApi
+        .endpoint("/payments")
         .select("id, user_id, razorpay_order_id, razorpay_payment_id, amount, currency, status, failure_reason, refund_id, refund_amount, refunded_at, created_at, updated_at")
         .order("created_at", { ascending: false });
 
@@ -77,8 +77,8 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
       }
 
       // Fallback: minimal payments columns
-      const { data: minData, error: minError } = await db
-        .from("payments")
+      const { data: minData, error: minError } = await backendApi
+        .endpoint("/payments")
         .select("id, user_id, razorpay_order_id, razorpay_payment_id, amount, currency, status, created_at")
         .order("created_at", { ascending: false });
 
@@ -90,8 +90,8 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
       // FINAL FALLBACK: Use orders table as payment records
       // This covers the case where app writes to orders but not payments table
       console.warn("Payments table empty or inaccessible — falling back to orders table");
-      const { data: ordersData, error: ordersError } = await db
-        .from("orders")
+      const { data: ordersData, error: ordersError } = await backendApi
+        .endpoint("/orders")
         .select("id, user_id, razorpay_order_id, razorpay_payment_id, total_amount, status, coupon_code, discount_amount, created_at")
         .order("created_at", { ascending: false });
 
@@ -142,8 +142,8 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
     const userIds = [...new Set(rawPayments.map(p => p.user_id).filter(Boolean))];
 
     // Fetch profiles for those users
-    const { data: profilesData } = await db
-      .from("profiles")
+    const { data: profilesData } = await backendApi
+      .endpoint("/users")
       .select("id, email, full_name")
       .in("id", userIds.slice(0, 1000)); // max 1000
 

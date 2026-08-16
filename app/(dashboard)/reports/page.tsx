@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * Was a Server Component using a Supabase service-role key.
+ * Was a Server Component using a the previous backend service-role key.
  *
- * The original query relied on a Supabase embedded join
+ * The original query relied on a the previous backend embedded join
  * (`enrollments ... courses(id, title, price, is_free)`), which REST cannot
  * do. Courses are fetched separately and joined in memory below so
  * ReportsClient still receives the shape it expects.
@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import ReportsClient, { OrderReportItem, EnrollmentReportItem } from "./ReportsClient";
 
 export default function ReportsPage() {
@@ -28,9 +28,9 @@ export default function ReportsPage() {
     (async () => {
       try {
         const [ordersRes, enrollmentsRes, coursesRes] = await Promise.all([
-          db.from("orders").select("*").order("created_at", { ascending: false }),
-          db.from("enrollments").select("*").order("enrolled_at", { ascending: false }),
-          db.from("courses").select("id, title, price, is_free"),
+          backendApi.endpoint("/orders").select("*").order("created_at", { ascending: false }),
+          backendApi.endpoint("/enrollments").select("*").order("enrolled_at", { ascending: false }),
+          backendApi.endpoint("/courses").select("id, title, price, is_free"),
         ]);
 
         if (cancelled) return;

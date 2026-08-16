@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter, useParams } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Users, DollarSign, Tag } from "lucide-react";
 
 type CouponUsage = {
@@ -23,8 +23,8 @@ export default function CouponUsagePage() {
 
   useEffect(() => {
     Promise.all([
-      db.from("coupons").select("id, code, discount_type, discount_value, used_count, usage_limit").eq("id", id).maybeSingle(),
-      db.from("coupon_usage").select("id, used_at, discount_amount, user_id, profiles(email, full_name)").eq("coupon_id", id).order("used_at", { ascending: false }),
+      backendApi.endpoint("/coupons").select("id, code, discount_type, discount_value, used_count, usage_limit").eq("id", id).maybeSingle(),
+      backendApi.endpoint("/coupon-usage").select("id, used_at, discount_amount, user_id, profiles(email, full_name)").eq("coupon_id", id).order("used_at", { ascending: false }),
     ]).then(([{ data: c, error: couponErr }, { data: u, error: usageErr }]) => {
       if (couponErr) { console.warn("[coupon-usage] coupon load failed:", couponErr.message); setLoadError(couponErr.message); }
       if (usageErr) { console.warn("[coupon-usage] usage load failed:", usageErr.message); setLoadError(usageErr.message); }

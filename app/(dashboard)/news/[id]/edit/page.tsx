@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Save } from "lucide-react";
 
 export default function EditArticlePage() {
@@ -19,8 +19,8 @@ export default function EditArticlePage() {
 
   useEffect(() => {
     async function fetchArticle() {
-      const { data, error } = await db
-        .from("news")
+      const { data, error } = await backendApi
+        .endpoint("/news")
         .select("*")
         .eq("id", id)
         .single();
@@ -54,8 +54,8 @@ export default function EditArticlePage() {
 
     setSaving(true);
 
-    const { error } = await db
-      .from("news")
+    const { error } = await backendApi
+      .endpoint("/news")
       .update(form)
       .eq("id", id);
 

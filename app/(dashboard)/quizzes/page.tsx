@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Plus, Trash2, HelpCircle, ChevronUp, ChevronDown } from "lucide-react";
 
 // Manage quiz questions per lesson. The mobile app reads quiz_questions for a
@@ -33,8 +33,8 @@ export default function QuizzesPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    db
-      .from("courses")
+    backendApi
+      .endpoint("/courses")
       .select("id, title")
       .order("title")
       .then(({ data }) => setCourses((data as Course[]) ?? []));
@@ -43,8 +43,8 @@ export default function QuizzesPage() {
   useEffect(() => {
     setModules([]); setModuleId(""); setLessons([]); setLessonId(""); setQuestions([]);
     if (!courseId) return;
-    db
-      .from("modules")
+    backendApi
+      .endpoint("/modules")
       .select("id, title")
       .eq("course_id", courseId)
       .order("order_index", { ascending: true })
@@ -54,8 +54,8 @@ export default function QuizzesPage() {
   useEffect(() => {
     setLessons([]); setLessonId(""); setQuestions([]);
     if (!moduleId) return;
-    db
-      .from("lessons")
+    backendApi
+      .endpoint("/lessons")
       .select("id, title")
       .eq("module_id", moduleId)
       .order("order_index", { ascending: true })
@@ -64,8 +64,8 @@ export default function QuizzesPage() {
 
   const loadQuestions = useCallback(async () => {
     if (!lessonId) { setQuestions([]); return; }
-    const { data, error: err } = await db
-      .from("quiz_questions")
+    const { data, error: err } = await backendApi
+      .endpoint("/quiz-questions")
       .select("id, question_text, options, correct_option_index, position")
       .eq("lesson_id", lessonId)
       .order("position", { ascending: true });
@@ -87,7 +87,7 @@ export default function QuizzesPage() {
     if (opts.length < 2) { setError("At least 2 options are required"); return; }
     if (form.correct >= opts.length) { setError("Correct answer must be one of the options"); return; }
     setSaving(true);
-    const { error: err } = await db.from("quiz_questions").insert({
+    const { error: err } = await backendApi.endpoint("/quiz-questions").insert({
       lesson_id: lessonId,
       question_text: form.question_text.trim(),
       options: opts,
@@ -102,7 +102,7 @@ export default function QuizzesPage() {
 
   async function removeQuestion(id: string) {
     if (!confirm("Delete this question?")) return;
-    await db.from("quiz_questions").delete().eq("id", id);
+    await backendApi.endpoint("/quiz-questions").delete().eq("id", id);
     loadQuestions();
   }
 
@@ -111,8 +111,8 @@ export default function QuizzesPage() {
     if (other < 0 || other >= questions.length) return;
     const a = questions[index], b = questions[other];
     await Promise.all([
-      db.from("quiz_questions").update({ position: other }).eq("id", a.id),
-      db.from("quiz_questions").update({ position: index }).eq("id", b.id),
+      backendApi.endpoint("/quiz-questions").update({ position: other }).eq("id", a.id),
+      backendApi.endpoint("/quiz-questions").update({ position: index }).eq("id", b.id),
     ]);
     loadQuestions();
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { apiFetch } from "@/lib/api-client";
 import type { UserProfile } from '@/types/users';
 import { X, GraduationCap, Package, Shield, AlertTriangle, Send, Check, BookOpen, Plus } from 'lucide-react';
@@ -37,9 +37,9 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     setLoading(true);
     setActionMsg('');
     Promise.all([
-      db.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false }),
-      db.from('orders').select('id, created_at, total_amount, status, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-      db.from('courses').select('id, title').eq('is_published', true).order('title'),
+      backendApi.endpoint("/enrollments").select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false }),
+      backendApi.endpoint("/orders").select('id, created_at, total_amount, status, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+      backendApi.endpoint("/courses").select('id, title').eq('is_published', true).order('title'),
     ]).then(([e, p, c]) => {
       setEnrollments((e.data ?? []) as unknown as Enrollment[]);
       setPurchases(p.data ?? []);
@@ -78,7 +78,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     const expiresAt = new Date(Date.now() + 365 * 86400000).toISOString();
     // enrolled_at is NOT sent: it is not in CreateEnrollmentDto and the
     // backend uses forbidNonWhitelisted. The DB defaults it to now().
-    const { error } = await db.from('enrollments').upsert({
+    const { error } = await backendApi.endpoint("/enrollments").upsert({
       user_id: user.id, course_id: selectedCourseId,
       payment_status: 'completed',
       expires_at: expiresAt,
@@ -90,7 +90,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
       setShowGrantForm(false);
       setSelectedCourseId('');
       // Reload enrollments
-      const { data } = await db.from('enrollments').select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false });
+      const { data } = await backendApi.endpoint("/enrollments").select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false });
       setEnrollments((data ?? []) as unknown as Enrollment[]);
     }
     setGrantingCourse(false);
@@ -98,7 +98,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
 
   const handleRevokeAccess = async (enrollmentId: string, courseTitle: string) => {
     if (!confirm(`Revoke access to "${courseTitle}"? Student will lose access immediately.`)) return;
-    const { error } = await db.from('enrollments').delete().eq('id', enrollmentId);
+    const { error } = await backendApi.endpoint("/enrollments").delete().eq('id', enrollmentId);
     if (!error) {
       setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
       setActionMsg(`✓ Access to "${courseTitle}" revoked.`);
@@ -108,7 +108,7 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
   const handleSendNotification = async () => {
     if (!notifTitle.trim() || !notifMsg.trim()) { alert('Title and message required'); return; }
     setSendingNotif(true);
-    const { error } = await db.from('notifications').insert({
+    const { error } = await backendApi.endpoint("/notifications").insert({
       // created_at is set server-side; sending it returns 400 because the
       // backend validates with forbidNonWhitelisted.
       user_id: user.id, title: notifTitle, body: notifMsg,

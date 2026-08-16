@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DataErrorNotice from "@/components/DataErrorNotice";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Truck, Save, MapPin, Info, CheckCircle, Package, Clock, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
 
 const REMOTE_STATES = [
@@ -41,7 +41,7 @@ export default function ShippingPage() {
   const [bulkShipping, setBulkShipping]     = useState(false);
 
   useEffect(() => {
-    db.from("settings").select("key,value")
+    backendApi.endpoint("/settings").select("key,value")
       .in("key",["shipping_fee","shipping_fee_remote","free_shipping_threshold"])
       .then(({ data, error }) => {
         if (error) setLoadError(error.message);
@@ -56,8 +56,8 @@ export default function ShippingPage() {
 
   const loadShippingOrders = async () => {
     setOrdersLoading(true);
-    const { data, error } = await db
-      .from("orders")
+    const { data, error } = await backendApi
+      .endpoint("/orders")
       .select("id, user_id, status, total_amount, created_at, shipping_address, tracking_number")
       .in("status", ["paid", "packed", "shipped", "delivered"])
       .order("created_at", { ascending: false })
@@ -67,8 +67,8 @@ export default function ShippingPage() {
       const rows = data as unknown as ShippingOrder[];
       const ids = rows.map(r => r.user_id).filter(Boolean);
       if (ids.length > 0) {
-        const { data: profiles } = await db
-          .from("profiles").select("id, email, full_name").in("id", ids);
+        const { data: profiles } = await backendApi
+          .endpoint("/users").select("id, email, full_name").in("id", ids);
         const pm: Record<string, any> = {};
         (profiles ?? []).forEach((p: any) => { pm[p.id] = p; });
         setShippingOrders(rows.map(r => ({ ...r, profiles: pm[r.user_id] ?? null })));
@@ -87,7 +87,7 @@ export default function ShippingPage() {
 
   const updateOrderStatus = async (id: string, status: string) => {
     setStatusUpdate(id);
-    const { error } = await db.from("orders").update({ status }).eq("id", id);
+    const { error } = await backendApi.endpoint("/orders").update({ status }).eq("id", id);
     if (!error) {
       setShippingOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
     } else {
@@ -105,9 +105,9 @@ export default function ShippingPage() {
     setSaving(true);
     setSaveError(null);
     const results = await Promise.all([
-      db.from("settings").upsert({ key:"shipping_fee", value:standard, label:"Standard shipping fee (₹)" }, { onConflict: "key" }),
-      db.from("settings").upsert({ key:"shipping_fee_remote", value:remote, label:"Remote area shipping fee (₹)" }, { onConflict: "key" }),
-      db.from("settings").upsert({ key:"free_shipping_threshold", value:threshold, label:"Free shipping above (₹)" }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key:"shipping_fee", value:standard, label:"Standard shipping fee (₹)" }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key:"shipping_fee_remote", value:remote, label:"Remote area shipping fee (₹)" }, { onConflict: "key" }),
+      backendApi.endpoint("/settings").upsert({ key:"free_shipping_threshold", value:threshold, label:"Free shipping above (₹)" }, { onConflict: "key" }),
     ]);
     setSaving(false);
 
@@ -138,7 +138,7 @@ export default function ShippingPage() {
     const tracking = trackingInputs[orderId]?.trim();
     if (!tracking) { alert("Enter a tracking number first"); return; }
     setSavingTracking(orderId);
-    const { error } = await db.from("orders")
+    const { error } = await backendApi.endpoint("/orders")
       .update({ tracking_number: tracking, status: "shipped" })
       .eq("id", orderId);
     if (!error) {
@@ -153,7 +153,7 @@ export default function ShippingPage() {
     if (!confirm(`Mark ${packed.length} orders as Shipped?`)) return;
     setBulkShipping(true);
     const ids = packed.map(o => o.id);
-    await db.from("orders").update({ status: "shipped" }).in("id", ids);
+    await backendApi.endpoint("/orders").update({ status: "shipped" }).in("id", ids);
     setShippingOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, status: "shipped" } : o));
     setBulkShipping(false);
     alert(`${packed.length} orders marked as Shipped.`);

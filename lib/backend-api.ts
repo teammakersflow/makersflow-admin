@@ -3,16 +3,23 @@
 // responses vary per endpoint, and inventing precise types would be a
 // fiction that the runtime does not guarantee. Callers narrow as needed.
 /**
- * REST-backed data layer. Replaces the Supabase client across this app.
+ * BACKEND REST CLIENT — this is NOT the previous backend.
+ *
+ * Every call here is an HTTPS request to the NestJS API
+ * (process.env.NEXT_PUBLIC_API_URL, e.g. https://api.makersflow.in) with a
+ * JWT Bearer token. There is no database driver and no the previous backend SDK in this
+ * project; `@the previous backend/the previous backend` is not installed.
+ *
+ * Call sites name the HTTP path, e.g. backendApi.endpoint("/coupons").
  *
  * WHY THIS EXISTS
  * ---------------
- * ~40 pages were written against Supabase's chainable query builder
- * (`.from(t).select().eq().order()`), always returning `{ data, error }`.
+ * ~40 pages were written against the previous backend's chainable query builder
+ * (a chainable query builder), always returning `{ data, error }`.
  * The new NestJS backend is a plain REST API. Rewriting every page's data
  * logic by hand would risk subtle behaviour changes in pages nobody has
  * time to re-test. Instead this module keeps the same calling convention
- * and translates it into REST calls. The `@supabase/supabase-js`
+ * and translates it into REST calls. The `@the previous backend/the previous backend`
  * dependency is gone; only the shape survives.
  *
  * READ THIS BEFORE TRUSTING THE NUMBERS
@@ -22,7 +29,7 @@
  *    fetching the whole table. Results are correct but it does not scale —
  *    ask the backend team for real query params as data grows.
  * 2. `.select("a, b, nested(x)")` does NOT project columns or perform
- *    joins. Whatever the endpoint returns is what you get. Supabase-style
+ *    joins. Whatever the endpoint returns is what you get. the previous backend-style
  *    embedded joins (e.g. `profiles(email)`) come back UNDEFINED — the
  *    backend has no join endpoints. Pages that showed a user's email
  *    alongside an order will show their fallback text instead.
@@ -35,39 +42,15 @@
 import { API_URL, tokenStore } from "./api-client";
 
 /** Tables the NestJS backend currently exposes. */
-const TABLE_ENDPOINTS: Record<string, string> = {
-  courses: "/courses",
-  products: "/products",
-  orders: "/orders",
-  categories: "/categories",
-  coupons: "/coupons",
-  modules: "/modules",
-  lessons: "/lessons",
-  users: "/users",
-  reviews: "/reviews",
-  enrollments: "/enrollments",
-  payments: "/payments",
-  notifications: "/notifications",
-  certificates: "/certificates",
-  // Modules added to the backend for the admin panel:
-  settings: "/settings",
-  promo_codes: "/promo-codes",
-  news: "/news",
-  announcements: "/announcements",
-  promotions: "/promotions",
-  quiz_questions: "/quiz-questions",
-  lesson_notes: "/lesson-notes",
-  lesson_resources: "/lesson-resources",
-  review_replies: "/review-replies",
-  course_purchases: "/course-purchases",
-  coupon_usage: "/coupon-usage",
-  lesson_progress: "/lesson-progress",
-  // `profiles` was the old Supabase user table. The backend's user model is
-  // `public_users` (mapped to the `users` table), served at /users. Field
-  // names overlap (id, email, full_name, created_at) so this mapping works
-  // for the admin screens, but it is NOT the same table the old app read.
-  profiles: "/users",
-};
+/** Endpoint paths the NestJS backend exposes. */
+const KNOWN_ENDPOINTS = new Set<string>([
+  "/courses", "/products", "/orders", "/categories", "/coupons", "/modules",
+  "/lessons", "/users", "/reviews", "/enrollments", "/payments",
+  "/notifications", "/certificates", "/settings", "/promo-codes", "/news",
+  "/announcements", "/promotions", "/quiz-questions", "/lesson-notes",
+  "/lesson-resources", "/review-replies", "/course-purchases",
+  "/coupon-usage", "/lesson-progress",
+]);
 
 /**
  * Tables the frontend uses that the backend has NO module for yet.
@@ -82,7 +65,7 @@ const UNSUPPORTED_TABLES: Record<string, string> = {
 
 /**
  * Prisma serialises `Decimal` columns as JSON STRINGS ("331200.00"), not
- * numbers. Supabase's PostgREST returned real numbers, so existing code
+ * numbers. the previous backend's PostgREST returned real numbers, so existing code
  * does arithmetic like `total += order.total_amount` — which silently
  * CONCATENATES when the value is a string ("0" + "331200" = "0331200").
  *
@@ -204,9 +187,9 @@ class QueryBuilder implements PromiseLike<DbResult> {
     | { kind: "delete" }
     | null = null;
 
-  constructor(table: string) {
-    this.table = table;
-    this.endpoint = TABLE_ENDPOINTS[table] ?? null;
+  constructor(path: string) {
+    this.table = path.replace(/^\//, "").replace(/-/g, "_");
+    this.endpoint = KNOWN_ENDPOINTS.has(path) ? path : null;
   }
 
   select(_columns?: string, options?: { count?: string; head?: boolean }) {
@@ -376,7 +359,7 @@ class QueryBuilder implements PromiseLike<DbResult> {
           row = await request(`${this.endpoint}/${id}`);
         } catch (e: any) {
           // A 404 means "no such row". maybeSingle() treats that as an empty
-          // result (matching Supabase); single() treats it as an error.
+          // result; single() treats it as an error.
           if (e?.status === 404) {
             return this.singleMode === "maybe"
               ? { data: null, error: null }
@@ -452,13 +435,21 @@ class QueryBuilder implements PromiseLike<DbResult> {
   }
 }
 
-export const db = {
-  from(table: string) {
-    return new QueryBuilder(table);
+export const backendApi = {
+  /**
+   * Call a REST endpoint on the NestJS backend.
+   *
+   *   backendApi.endpoint("/coupons").select("*")
+   *
+   * The argument is the HTTP path on api.makersflow.in — NOT a database
+   * table. Nothing here touches a database directly.
+   */
+  endpoint(path: string) {
+    return new QueryBuilder(path);
   },
 
   /**
-   * Realtime is a Supabase feature with no equivalent in the REST backend.
+   * Realtime is a the previous backend feature with no equivalent in the REST backend.
    * These stubs keep subscribe/unsubscribe call sites working; live updates
    * simply don't happen. Affected: features/users/components/UsersTable.tsx.
    */
@@ -473,4 +464,4 @@ export const db = {
   removeChannel(_channel: unknown) {},
 };
 
-export default db;
+export default backendApi;

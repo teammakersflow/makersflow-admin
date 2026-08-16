@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Star, Check, X, Trash2, MessageSquare } from "lucide-react";
 
 // Moderation queue for course reviews submitted from the app & web.
@@ -54,15 +54,15 @@ export default function ReviewsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data }, ...countResults] = await Promise.all([
-      db
-        .from("reviews")
+      backendApi
+        .endpoint("/reviews")
         .select("id, user_id, course_id, rating, comment, status, created_at")
         .eq("status", tab)
         .order("created_at", { ascending: false })
         .limit(200),
       ...TABS.map((t) =>
-        db
-          .from("reviews")
+        backendApi
+          .endpoint("/reviews")
           .select("id", { count: "exact", head: true })
           .eq("status", t.id)
       ),
@@ -77,10 +77,10 @@ export default function ReviewsPage() {
 
     const [{ data: profs }, { data: crs }] = await Promise.all([
       userIds.length
-        ? db.from("profiles").select("id, email, full_name").in("id", userIds)
+        ? backendApi.endpoint("/users").select("id, email, full_name").in("id", userIds)
         : Promise.resolve({ data: [] as any[] }),
       courseIds.length
-        ? db.from("courses").select("id, title").in("id", courseIds)
+        ? backendApi.endpoint("/courses").select("id, title").in("id", courseIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
@@ -106,7 +106,7 @@ export default function ReviewsPage() {
 
   async function setStatus(id: string, status: Review["status"]) {
     setBusy(id);
-    const { error } = await db.from("reviews").update({ status }).eq("id", id);
+    const { error } = await backendApi.endpoint("/reviews").update({ status }).eq("id", id);
     setBusy(null);
     if (error) {
       alert(`Failed: ${error.message}`);
@@ -118,7 +118,7 @@ export default function ReviewsPage() {
   async function remove(id: string) {
     if (!confirm("Permanently delete this review?")) return;
     setBusy(id);
-    await db.from("reviews").delete().eq("id", id);
+    await backendApi.endpoint("/reviews").delete().eq("id", id);
     setBusy(null);
     load();
   }
@@ -126,7 +126,7 @@ export default function ReviewsPage() {
   async function submitReply(reviewId: string) {
     if (!replyText.trim()) return;
     setSubmittingReply(true);
-    await db.from("review_replies").insert({
+    await backendApi.endpoint("/review-replies").insert({
       review_id: reviewId, content: replyText.trim(), created_at: new Date().toISOString(),
     });
     setSubmittingReply(false);

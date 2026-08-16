@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import { Search, RefreshCw, AlertCircle, Calendar, CheckCircle2, XCircle, Info, DollarSign, ArrowUpDown } from "lucide-react";
 
 export type OrderForRefund = {
@@ -54,8 +54,8 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
     if (!confirm(confirmMsg)) return;
 
     setProcessingId(order.id);
-    const { error } = await db
-      .from("orders")
+    const { error } = await backendApi
+      .endpoint("/orders")
       .update({ status: "cancelled" })
       .eq("id", order.id);
 
@@ -67,7 +67,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
 
     // Send in-app notification to customer
     try {
-      await db.from("notifications").insert({
+      await backendApi.endpoint("/notifications").insert({
         user_id: order.user_id,
         title: "Order Refund Processed",
         body: `Your order #${order.id.slice(0,8).toUpperCase()} has been cancelled and ₹${refundAmt.toLocaleString()} refund has been initiated. It will reflect in 5-7 business days.`,

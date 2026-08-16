@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Was a Server Component using a Supabase service-role key.
+ * Was a Server Component using a the previous backend service-role key.
  *
  * The embedded join `enrollments ... courses(...)` is done in memory here
  * instead, since REST cannot join. The `course_purchases` query was already
@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import LMSPurchasesClient, { Enrollment } from "./LMSPurchasesClient";
 
 export default function LMSPurchasesPage() {
@@ -23,9 +23,9 @@ export default function LMSPurchasesPage() {
       let result: Enrollment[] = [];
       try {
         const [enrollmentsRes, profilesRes, coursesRes] = await Promise.all([
-          db.from("enrollments").select("*").order("enrolled_at", { ascending: false }),
-          db.from("profiles").select("id, email, full_name"),
-          db.from("courses").select("id, title, price, is_free"),
+          backendApi.endpoint("/enrollments").select("*").order("enrolled_at", { ascending: false }),
+          backendApi.endpoint("/users").select("id, email, full_name"),
+          backendApi.endpoint("/courses").select("id, title, price, is_free"),
         ]);
 
         if (enrollmentsRes.error) {

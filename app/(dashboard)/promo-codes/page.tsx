@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Was a Server Component using a Supabase service-role key.
+ * Was a Server Component using a the previous backend service-role key.
  *
  * HEADS UP: the `promo_codes` table has NO endpoint on the NestJS backend
  * (only `coupons` does — a different table). So the promo code list will
@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { backendApi } from "@/lib/backend-api";
 import PromoCodesClient, { PromoCode } from "./PromoCodesClient";
 
 export default function PromoCodesPage() {
@@ -26,9 +26,9 @@ export default function PromoCodesPage() {
     (async () => {
       try {
         const [promoCodesRes, coursesRes, productsRes] = await Promise.all([
-          db.from("promo_codes").select("*").order("created_at", { ascending: false }),
-          db.from("courses").select("id, title").eq("is_published", true),
-          db.from("products").select("id, title"),
+          backendApi.endpoint("/promo-codes").select("*").order("created_at", { ascending: false }),
+          backendApi.endpoint("/courses").select("id, title").eq("is_published", true),
+          backendApi.endpoint("/products").select("id, title"),
         ]);
 
         if (cancelled) return;
