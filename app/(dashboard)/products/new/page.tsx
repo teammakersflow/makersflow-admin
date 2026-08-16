@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { db } from "@/lib/db";
+import { fetchCategories as apiFetchCategories, createCategory } from "@/lib/categories-api";
 import { createProduct as apiCreateProduct, updateProduct as apiUpdateProduct } from "@/lib/products-api";
 import { ArrowLeft, Save, Upload, X, Star, Play } from "lucide-react";
 import { uploadToS3 } from "@/lib/s3Upload";
@@ -48,14 +48,15 @@ export default function NewProductPage() {
 
   // Fetch categories on mount
   useEffect(() => {
-    async function fetchCategories() {
-      const { data, error } = await db
-        .from("categories")
-        .select("id, name")
-        .order("name");
-      if (!error && data) setCategories(data);
+    async function loadCategories() {
+      try {
+        const list = await apiFetchCategories();   // GET /categories
+        setCategories(list as any);
+      } catch (e) {
+        console.warn("[products/new] could not load categories:", e);
+      }
     }
-    fetchCategories();
+    loadCategories();
   }, []);
 
   // Auto-generate slug from title
@@ -95,11 +96,13 @@ export default function NewProductPage() {
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 
     setAddingCategory(true);
-    const { data, error } = await db
-      .from("categories")
-      .insert({ name, slug })   // 👈 add slug here
-      .select("id, name")
-      .single();
+    let data: any = null;
+    let error: { message: string } | null = null;
+    try {
+      data = await createCategory({ name, slug });   // POST /categories
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "Could not add category" };
+    }
 
     if (error) {
       alert(error.message);

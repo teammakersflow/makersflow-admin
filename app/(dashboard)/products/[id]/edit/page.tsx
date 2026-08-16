@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { db } from "@/lib/db";
+import { fetchCategories as apiFetchCategories, createCategory } from "@/lib/categories-api";
 import { fetchProduct as apiFetchProduct, updateProduct } from "@/lib/products-api";
 import { ArrowLeft, Upload, X, Star, Play } from "lucide-react";
 import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
@@ -85,14 +85,15 @@ export default function EditProductPage() {
 
   // Fetch categories
   useEffect(() => {
-    async function fetchCategories() {
-      const { data, error } = await db
-        .from("categories")
-        .select("id, name")
-        .order("name");
-      if (!error && data) setCategories(data);
+    async function loadCategories() {
+      try {
+        const list = await apiFetchCategories();   // GET /categories
+        setCategories(list as any);
+      } catch (e) {
+        console.warn("[products/edit] could not load categories:", e);
+      }
     }
-    fetchCategories();
+    loadCategories();
   }, []);
 
   // Fetch product
@@ -154,11 +155,13 @@ export default function EditProductPage() {
     if (!name) return;
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     setAddingCategory(true);
-    const { data, error } = await db
-      .from("categories")
-      .insert({ name, slug })
-      .select("id, name")
-      .single();
+    let data: any = null;
+    let error: { message: string } | null = null;
+    try {
+      data = await createCategory({ name, slug });   // POST /categories
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "Could not add category" };
+    }
     if (error) {
       alert(error.message);
     } else if (data) {

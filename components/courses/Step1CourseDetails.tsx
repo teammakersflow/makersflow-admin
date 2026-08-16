@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { ImagePlus, X, Loader2, Star } from "lucide-react";
 import { Category, CourseFormData } from "@/types/course";
 import { fetchCategories } from "@/lib/course-api";
-import { db } from "@/lib/db";
+import { createCategory } from "@/lib/categories-api";
 import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 
 interface Props {
@@ -65,7 +65,9 @@ export default function Step1CourseDetails({
 
   // Load categories
   useEffect(() => {
-    fetchCategories().then(setCategories);
+    // Backend serialises BigInt ids as strings (see main.ts), so this
+    // matches the Category type.
+    fetchCategories().then((list) => setCategories(list as unknown as Category[]));
   }, []);
 
   function set<K extends keyof CourseFormData>(key: K, value: CourseFormData[K]) {
@@ -189,15 +191,10 @@ async function handleThumbnailChange(e: React.ChangeEvent<HTMLInputElement>) {
 
     setSavingCategory(true);
     try {
-      const { data, error } = await db
-        .from("categories")
-        .insert({ name, slug: slugify(name) })
-        .select()
-        .single();
+      // POST /categories
+      const data = await createCategory({ name, slug: slugify(name) });
 
-      if (error) throw error;
-
-      setCategories((prev) => [...prev, data]);
+      setCategories((prev) => [...prev, data as any]);
       set("category", data.name);
       setIsAddingCategory(false);
       setNewCategory("");

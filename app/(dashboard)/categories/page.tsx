@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db";
+import { fetchCategories, createCategory, updateCategory, deleteCategory } from "@/lib/categories-api";
+import DataErrorNotice from "@/components/DataErrorNotice";
+import { fetchProducts } from "@/lib/products-api";
 import { Plus, Edit2, Trash2, Save, X, Tag } from "lucide-react";
 
 type Category = {
@@ -15,6 +17,7 @@ const emptyForm = { name: "", slug: "" };
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [showForm, setShowForm]     = useState(false);
   const [form, setForm]             = useState(emptyForm);
   const [editingId, setEditingId]   = useState<string | null>(null);
@@ -25,12 +28,20 @@ export default function CategoriesPage() {
   // ── Load categories with product counts ────────────────────
   useEffect(() => {
     async function loadCategories() {
-      const [{ data: cats, error }, { data: products }] = await Promise.all([
-        db.from("categories").select("*").order("name", { ascending: true }),
-        db.from("products").select("category"),
-      ]);
-
-      if (error) { console.warn("[categories] data error:", error); setLoading(false); return; }
+      // GET /categories and GET /products
+      let cats: any[] = [];
+      let products: any[] = [];
+      try {
+        [cats, products] = await Promise.all([
+          fetchCategories(),
+          fetchProducts().catch(() => []),   // counts are secondary
+        ]);
+      } catch (e) {
+        console.warn("[categories] could not load categories:", e);
+        setLoadError(e instanceof Error ? e.message : "Could not load categories.");
+        setLoading(false);
+        return;
+      }
 
       // Count products per category name
       const countMap: Record<string, number> = {};
@@ -83,14 +94,16 @@ export default function CategoriesPage() {
 
     if (editingId) {
       // UPDATE
-      const { error } = await db
-        .from("categories")
-        .update({ name: form.name, slug: form.slug })
-        .eq("id", editingId);
+      let error: { message: string } | null = null;
+      try {
+        await updateCategory(editingId, { name: form.name, slug: form.slug }); // PATCH /categories/:id
+      } catch (e) {
+        error = { message: e instanceof Error ? e.message : "Update failed" };
+      }
 
       if (error) {
-        console.warn("[categories] data error:", error);
-        alert("Failed to update category.");
+        console.warn("[categories] update failed:", error);
+        alert(`Failed to update category: ${error.message}`);
       } else {
         setCategories((prev) =>
           prev.map((c) =>
@@ -101,17 +114,19 @@ export default function CategoriesPage() {
       }
     } else {
       // CREATE
-      const { data, error } = await db
-        .from("categories")
-        .insert({ name: form.name, slug: form.slug })
-        .select()
-        .single();
+      let data: any = null;
+      let error: { message: string } | null = null;
+      try {
+        data = await createCategory({ name: form.name, slug: form.slug }); // POST /categories
+      } catch (e) {
+        error = { message: e instanceof Error ? e.message : "Create failed" };
+      }
 
       if (error) {
-        console.warn("[categories] data error:", error);
-        alert("Failed to create category.");
+        console.warn("[categories] create failed:", error);
+        alert(`Failed to create category: ${error.message}`);
       } else {
-        setCategories((prev) => [...prev, data]);
+        setCategories((prev) => [...prev, { ...data, count: 0 }]);
         handleCancel();
       }
     }
@@ -128,11 +143,16 @@ export default function CategoriesPage() {
 
     setDeletingId(id);
 
-    const { error } = await db.from("categories").delete().eq("id", id);
+    let error: { message: string } | null = null;
+    try {
+      await deleteCategory(id);                 // DELETE /categories/:id
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "Delete failed" };
+    }
 
     if (error) {
-      console.warn("[categories] data error:", error);
-      alert("Failed to delete category.");
+      console.warn("[categories] delete failed:", error);
+      alert(`Failed to delete category: ${error.message}`);
     } else {
       setCategories((prev) => prev.filter((c) => c.id !== id));
     }
@@ -143,6 +163,7 @@ export default function CategoriesPage() {
   // ── Render ─────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+      <DataErrorNotice message={loadError} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
