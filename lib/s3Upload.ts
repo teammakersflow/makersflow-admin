@@ -1,6 +1,6 @@
 /**
  * File uploads via the NestJS backend's presigned-URL endpoint.
- * Replaces the old Supabase Edge Functions (generate-upload-url /
+ * Replaces the old edge functions (generate-upload-url /
  * delete-s3-file), which no longer exist.
  *
  * The backend returns `{ uploadUrl, key, publicUrl }` from

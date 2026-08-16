@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 /**
  * See app/api/announcements/route.ts for the full explanation.
  *
- * Short version: Supabase is gone and the NestJS backend has no
+ * Short version: the old data layer is gone and the NestJS backend has no
  * `announcements` module. `notifications` is a different table (per-user
  * alerts) and is not a substitute for broadcast announcements.
  */

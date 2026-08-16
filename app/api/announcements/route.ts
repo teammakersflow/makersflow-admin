@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 /**
  * ANNOUNCEMENTS ARE NOT AVAILABLE YET.
  *
- * These routes previously used a Supabase service-role key to bypass RLS.
- * Supabase is gone, and the NestJS backend has no `announcements` module.
+ * These routes previously used a privileged service key against the old
+ * database. That is gone, and the NestJS backend has no `announcements`
+ * module yet.
  *
  * Note that `announcements` and `notifications` are DIFFERENT tables:
  *   announcements — broadcast messages (title, message, type, status)

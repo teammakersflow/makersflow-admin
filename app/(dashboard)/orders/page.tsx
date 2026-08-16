@@ -7,7 +7,7 @@
  *   GET /users   → customer names/emails (replaces the old `profiles` query)
  *
  * Both go through lib/orders-api.ts, which uses the JWT access token for
- * authentication. This was previously a Server Component using a Supabase
+ * authentication. This was previously a Server Component using a privileged
  * service-role key; the JWT now lives in the browser, so it fetches here.
  */
 

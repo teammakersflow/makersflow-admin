@@ -53,7 +53,7 @@ export default function ViewProductPage() {
   useEffect(() => {
     async function fetchAll() {
       // GET /products/:id, GET /orders and GET /users.
-      // The buyer email previously came from a Supabase embedded join
+      // The buyer email previously came from an embedded join
       // (`profiles(email, full_name)`), which REST cannot do — users are
       // fetched separately and joined in memory below.
       const [prod, allOrders, userMap] = await Promise.all([

@@ -4,13 +4,13 @@
  * IMPORTANT ARCHITECTURE NOTE — read before touching this file.
  *
  * The old version of this page was a Next.js Server Component that ran on
- * the server with a Supabase service-role key, bypassing auth entirely.
+ * the server with a privileged service key, bypassing auth entirely.
  * Our new auth stores the JWT in the browser's localStorage (see
  * lib/api-client.ts), which a server component has no access to. So this
  * page is now a CLIENT component that fetches once the browser has the
  * token, same pattern as app/(dashboard)/layout.tsx.
  *
- * DATA GAPS vs the old Supabase version — call these out to your friend,
+ * DATA GAPS vs the previous version — worth raising with the backend team,
  * don't treat the numbers below as silently equivalent:
  *
  * 1. `activeUsers` now comes from GET /analytics/dashboard, which counts
@@ -124,7 +124,7 @@ export default function DashboardPage() {
         let refundsCount = 0, totalRefundedAmount = 0;
         let thisMonthRevenue = 0, lastMonthRevenue = 0;
         // These two lists are intentionally DIFFERENT and are copied verbatim
-        // from the original Supabase dashboard so the figures do not change:
+        // from the original dashboard so the figures do not change:
         //   - the 30-day chart excludes "completed"
         //   - the revenue totals include it
         // NOTE for the team: neither list contains "out_for_delivery", even

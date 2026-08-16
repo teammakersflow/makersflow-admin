@@ -37,7 +37,7 @@ export default function NewProductPage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
 
-  // Categories from Supabase
+  // Categories from GET /categories
   const [categories, setCategories] = useState<Category[]>([]);
 
   // Media
@@ -283,8 +283,7 @@ router.push("/products");
             />
           </div>
 
-          {/* Category dropdown — populated from Supabase categories table */}
-          {/* Category dropdown — populated from Supabase categories table */}
+          {/* Category dropdown — populated from GET /categories */}
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-2">Category</label>
             <select

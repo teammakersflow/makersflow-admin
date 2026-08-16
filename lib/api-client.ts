@@ -4,7 +4,7 @@
 // fiction that the runtime does not guarantee. Callers narrow as needed.
 /**
  * Shared client for the MakersFlow NestJS backend.
- * Replaces the old `lib/supabase.ts`.
+ * Replaces the old database client.
  *
  * Handles token storage, attaching the Authorization header, and silently
  * refreshing an expired access token once before giving up.
