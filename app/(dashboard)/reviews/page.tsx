@@ -126,10 +126,20 @@ export default function ReviewsPage() {
   async function submitReply(reviewId: string) {
     if (!replyText.trim()) return;
     setSubmittingReply(true);
-    await backendApi.endpoint("/review-replies").insert({
-      review_id: reviewId, content: replyText.trim(), created_at: new Date().toISOString(),
+    // `created_at` is deliberately not sent — the server sets it, and the
+    // backend rejects unknown fields (forbidNonWhitelisted) with a 400.
+    const { error } = await backendApi.endpoint("/review-replies").insert({
+      review_id: reviewId, content: replyText.trim(),
     });
     setSubmittingReply(false);
+
+    if (error) {
+      // Previously this always claimed success, even when the request
+      // failed — so a reply could silently vanish.
+      alert(`Could not save reply: ${error.message}`);
+      return;
+    }
+
     setReplyingTo(null);
     setReplyText("");
     alert("Reply saved. It will appear in the app when displayed.");
