@@ -71,21 +71,52 @@ export default function SettingsPage() {
   // no idea the setting never persisted. Target `key` and surface real errors.
   const saveStoreInfo = async () => {
     setSavingStore(true);
-    const results = await Promise.all([
-      backendApi.endpoint("/settings").upsert({ key: "store_name", value: storeName }, { onConflict: "key" }),
-      backendApi.endpoint("/settings").upsert({ key: "support_email", value: supportEmail }, { onConflict: "key" }),
-      backendApi.endpoint("/settings").upsert({ key: "gst_number", value: gstNumber }, { onConflict: "key" }),
-      backendApi.endpoint("/settings").upsert({ key: "store_phone", value: storePhone }, { onConflict: "key" }),
-    ]);
-    setSavingStore(false);
+    setStoreMsg(null);
 
-    const failed = results.find((r) => r.error);
-    if (failed?.error) {
-      console.error("[settings] saveStoreInfo failed:", failed.error);
-      setStoreMsg(`Could not save: ${failed.error.message}`);
-    } else {
-      setStoreMsg("Store info saved!");
+    const settings = [
+      { key: "store_name", value: storeName.trim() },
+      { key: "support_email", value: supportEmail.trim() },
+      { key: "gst_number", value: gstNumber.trim() },
+      { key: "store_phone", value: storePhone.trim() },
+    ];
+
+    // Don't send empty optional settings to the backend.
+    const settingsToSave = settings.filter(
+      (setting) => setting.value.length > 0,
+    );
+
+    if (settingsToSave.length === 0) {
+      setSavingStore(false);
+      setStoreMsg("Please enter at least one store setting.");
+      return;
     }
+
+    try {
+      const results = await Promise.all(
+        settingsToSave.map(({ key, value }) =>
+          backendApi
+            .endpoint("/settings")
+            .upsert({ key, value }, { onConflict: "key" }),
+        ),
+      );
+
+      const failed = results.find((result) => result.error);
+
+      if (failed?.error) {
+        console.error("[settings] saveStoreInfo failed:", failed.error);
+        setStoreMsg(`Could not save: ${failed.error.message}`);
+      } else {
+        setStoreMsg("Store info saved!");
+      }
+    } catch (error) {
+      console.error("[settings] saveStoreInfo failed:", error);
+      setStoreMsg(
+        error instanceof Error ? error.message : "Could not save settings.",
+      );
+    } finally {
+      setSavingStore(false);
+    }
+
     setTimeout(() => setStoreMsg(null), 5000);
   };
 
