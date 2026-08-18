@@ -135,7 +135,8 @@ export default function DashboardPage() {
         const TOTAL_PAID_STATUSES = ["paid", "processing", "packed", "shipped", "delivered", "completed"];
 
         orders.forEach((order) => {
-          const dateStr = order.created_at.slice(0, 10);
+          // created_at is nullable in the schema, so guard before slicing.
+          const dateStr = (order.created_at ?? "").slice(0, 10);
           if (chartDataMap[dateStr]) {
             chartDataMap[dateStr].orders += 1;
             if (CHART_PAID_STATUSES.includes(order.status)) chartDataMap[dateStr].revenue += order.total_amount;
@@ -144,9 +145,9 @@ export default function DashboardPage() {
           else if (order.status === "cancelled") { refundsCount += 1; totalRefundedAmount += order.total_amount; }
           if (TOTAL_PAID_STATUSES.includes(order.status)) {
             totalRevenue += order.total_amount;
-            if (order.created_at >= startOfCurrentMonth) thisMonthRevenue += order.total_amount;
-            else if (order.created_at >= startOfLastMonth && order.created_at < startOfCurrentMonth) lastMonthRevenue += order.total_amount;
-            if (order.created_at >= startOfToday) todayRevenue += order.total_amount;
+            if ((order.created_at ?? "") >= startOfCurrentMonth) thisMonthRevenue += order.total_amount;
+            else if ((order.created_at ?? "") >= startOfLastMonth && (order.created_at ?? "") < startOfCurrentMonth) lastMonthRevenue += order.total_amount;
+            if ((order.created_at ?? "") >= startOfToday) todayRevenue += order.total_amount;
           }
         });
         monthRevenue = thisMonthRevenue;
@@ -177,7 +178,7 @@ export default function DashboardPage() {
             courseCountsMap[title] = (courseCountsMap[title] || 0) + 1;
           }
           if (e.payment_status !== "completed" && !course?.is_free) pendingEnrollments += 1;
-          if (e.enrolled_at >= startOfWeek) newEnrollmentsThisWeek += 1;
+          if ((e.enrolled_at ?? "") >= startOfWeek) newEnrollmentsThisWeek += 1;
         });
         const courseEnrollments = Object.entries(courseCountsMap)
           .map(([title, count]) => ({ title, count }))
@@ -201,7 +202,7 @@ export default function DashboardPage() {
         const failedPayments = payments.filter((p) => p.status === "failed").length;
 
         const recentPaymentsList: RecentPayment[] = [...payments]
-          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
           .slice(0, 5)
           .map((p) => ({
             id: p.id, amount: p.amount, status: p.status, created_at: p.created_at,
@@ -209,14 +210,14 @@ export default function DashboardPage() {
           }));
 
         const recentOrdersList: RecentOrder[] = [...orders]
-          .sort((a, b) => b.created_at.localeCompare(a.created_at))
+          .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
           .slice(0, 5)
           .map((o) => ({
             id: o.id, total_amount: o.total_amount, status: o.status, created_at: o.created_at,
             profiles: userMap.get(o.user_id) ? { email: userMap.get(o.user_id)!.email } : { email: "Unknown User" },
           }));
 
-        const newUsersThisMonth = usersPage.data.filter((u) => u.created_at >= startOfCurrentMonth).length;
+        const newUsersThisMonth = usersPage.data.filter((u) => (u.created_at ?? "") >= startOfCurrentMonth).length;
 
         const finalStats: DashboardStats = {
           totalRevenue, monthRevenue, todayRevenue, momGrowth,

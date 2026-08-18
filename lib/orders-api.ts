@@ -24,8 +24,24 @@ import { apiFetch, apiFetchWithMeta } from "./api-client";
  * Coerce the money fields to real numbers as they arrive.
  */
 const ORDER_DECIMALS = ["total_amount", "discount_amount", "subtotal", "tax_amount"] as const;
+const ORDER_DATES = ["created_at", "updated_at", "estimated_delivery"] as const;
+
+/** Dates may arrive as ISO strings, epoch numbers, or objects — normalise. */
+function toIso(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return Number.isNaN(Date.parse(value)) ? null : value;
+  if (typeof value === "number") {
+    const d = new Date(value < 1e11 ? value * 1000 : value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const d = new Date(value as any);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
 
 function coerceOrder<T extends Record<string, any>>(row: T): T {
+  ORDER_DATES.forEach((c) => {
+    if (c in row) (row as any)[c] = toIso(row[c as keyof T]);
+  });
   ORDER_DECIMALS.forEach((c) => {
     const v = row[c as keyof T];
     if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {

@@ -75,7 +75,7 @@ export default function ReportsClient({ orders, enrollments }: ReportsClientProp
 
   // Populate Revenue Trend
   revenueOrders.forEach(o => {
-    const dateStr = o.created_at.slice(0, 10);
+    const dateStr = String(o.created_at ?? "").slice(0, 10);
     if (dayMap[dateStr]) {
       dayMap[dateStr].revenue += o.total_amount;
     }
@@ -83,7 +83,7 @@ export default function ReportsClient({ orders, enrollments }: ReportsClientProp
 
   // Populate Daily Orders
   filteredOrders.forEach(o => {
-    const dateStr = o.created_at.slice(0, 10);
+    const dateStr = String(o.created_at ?? "").slice(0, 10);
     if (dayMap[dateStr]) {
       dayMap[dateStr].orders += 1;
     }

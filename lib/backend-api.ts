@@ -89,6 +89,66 @@ const DECIMAL_COLUMNS: Record<string, string[]> = {
   refunds: ["amount"],
 };
 
+
+/**
+ * Date columns can arrive in more than one shape depending on how the API
+ * serialises them (ISO string, epoch number, or a nested object). The app
+ * does string work on them — `created_at.slice(0, 10)`, `localeCompare`,
+ * and `>=` comparisons against ISO strings — which throws
+ * "created_at.slice is not a function" the moment it isn't a string.
+ *
+ * Normalise every known date column to an ISO string on arrival so all
+ * call sites can rely on it. Invalid or missing values become null.
+ */
+const DATE_COLUMNS: Record<string, string[]> = {
+  orders: ["created_at", "updated_at", "estimated_delivery"],
+  payments: ["created_at", "updated_at", "refunded_at"],
+  products: ["created_at", "updated_at"],
+  courses: ["created_at", "updated_at"],
+  categories: ["created_at"],
+  coupons: ["created_at", "expiry_date"],
+  users: ["created_at", "updated_at"],
+  enrollments: ["enrolled_at", "completed_at", "expires_at", "created_at"],
+  reviews: ["created_at", "updated_at"],
+  notifications: ["created_at"],
+  certificates: ["created_at", "issued_at"],
+  modules: ["created_at"],
+  lessons: ["created_at"],
+  news: ["created_at", "updated_at"],
+  announcements: ["created_at", "scheduled_at"],
+  promotions: ["created_at", "expires_at"],
+  promo_codes: ["created_at", "expiry_at"],
+  coupon_usage: ["used_at", "created_at"],
+  course_purchases: ["created_at", "purchased_at"],
+  settings: ["updated_at"],
+};
+
+function toIsoString(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") {
+    // Already ISO-ish — keep as-is so existing comparisons stay valid.
+    if (!Number.isNaN(Date.parse(value))) return value;
+    return null;
+  }
+  if (typeof value === "number") {
+    // Epoch seconds vs milliseconds: values below ~1e11 are seconds.
+    const ms = value < 1e11 ? value * 1000 : value;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  const d = new Date(value as any);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function coerceDates(table: string, row: any): any {
+  const cols = DATE_COLUMNS[table];
+  if (!cols || row == null || typeof row !== "object") return row;
+  cols.forEach((c) => {
+    if (c in row) row[c] = toIsoString(row[c]);
+  });
+  return row;
+}
+
 function coerceDecimals(table: string, row: any): any {
   const cols = DECIMAL_COLUMNS[table];
   if (!cols || row == null || typeof row !== "object") return row;
@@ -370,12 +430,12 @@ class QueryBuilder implements PromiseLike<DbResult> {
         if (!row && this.singleMode === "single") {
           return { data: null, error: { message: "No rows found" } };
         }
-        return { data: row ? coerceDecimals(this.table, row) : null, error: null };
+        return { data: row ? coerceDates(this.table, coerceDecimals(this.table, row)) : null, error: null };
       }
 
       let rows = await request(this.endpoint);
       if (!Array.isArray(rows)) rows = rows == null ? [] : [rows];
-      rows = rows.map((r: any) => coerceDecimals(this.table, r));
+      rows = rows.map((r: any) => coerceDates(this.table, coerceDecimals(this.table, r)));
 
       rows = applyFilters(rows, this.filters);
 
