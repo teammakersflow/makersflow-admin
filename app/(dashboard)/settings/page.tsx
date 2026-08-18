@@ -121,6 +121,20 @@ export default function SettingsPage() {
   };
 
   const saveShipping = async () => {
+    // `value` is @IsNotEmpty() on the backend — a blank field would 400 with
+    // an opaque message, so catch it here first.
+    const blank = [
+      ["Standard shipping fee", shippingFee],
+      ["Remote area fee", remoteFee],
+      ["Free shipping threshold", freeThreshold],
+    ].filter(([, v]) => !String(v ?? "").trim());
+
+    if (blank.length > 0) {
+      setShippingMsg(`Please fill in: ${blank.map(([n]) => n).join(", ")}.`);
+      setTimeout(() => setShippingMsg(null), 5000);
+      return;
+    }
+
     setSavingShipping(true);
     const results = await Promise.all([
       backendApi.endpoint("/settings").upsert({ key: "shipping_fee", value: shippingFee }, { onConflict: "key" }),

@@ -102,6 +102,19 @@ export default function ShippingPage() {
   // these three values, so a failed write mispriced every order while the admin
   // saw "Saved". Target `key` and surface the real error.
   const save = async () => {
+    // The backend DTO marks `value` @IsNotEmpty(), so a blank field returns a
+    // 400 that reads like a server fault. Validate here and say what's wrong.
+    const blank = [
+      ["Standard shipping fee", standard],
+      ["Remote area fee", remote],
+      ["Free shipping threshold", threshold],
+    ].filter(([, v]) => !String(v ?? "").trim());
+
+    if (blank.length > 0) {
+      setSaveError(`Please fill in: ${blank.map(([n]) => n).join(", ")}.`);
+      return;
+    }
+
     setSaving(true);
     setSaveError(null);
     const results = await Promise.all([
