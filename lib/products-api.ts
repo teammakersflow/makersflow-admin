@@ -16,21 +16,7 @@
 
 import { apiFetch } from "./api-client";
 
-/**
- * Prisma serialises `Decimal` columns as JSON strings ("499.00"), which
- * breaks arithmetic and sorting. Coerce them to numbers on arrival.
- */
-const PRODUCT_DECIMALS = ["price", "original_price", "gst_rate", "weight", "weight_kg"] as const;
 
-function coerceProduct<T extends Record<string, any>>(row: T): T {
-  PRODUCT_DECIMALS.forEach((c) => {
-    const v = row[c as keyof T];
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
-      (row as any)[c] = Number(v);
-    }
-  });
-  return row;
-}
 
 export type ApiProduct = {
   id: string | number;
@@ -144,7 +130,8 @@ export function toDtoPayload(payload: ProductPayload): Record<string, any> {
 /** GET /products */
 export async function fetchProducts(): Promise<ApiProduct[]> {
   const data = await apiFetch<ApiProduct[]>("/products");
-  const list = Array.isArray(data) ? data.map(coerceProduct) : [];
+  // apiFetch already normalises dates and Decimal strings.
+  const list = Array.isArray(data) ? data : [];
   // The endpoint has no sort parameter, so order newest-first here.
   return list.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
@@ -152,7 +139,7 @@ export async function fetchProducts(): Promise<ApiProduct[]> {
 /** GET /products/:id — returns null when it doesn't exist (404). */
 export async function fetchProduct(id: string | number): Promise<ApiProduct | null> {
   try {
-    return coerceProduct(await apiFetch<ApiProduct>(`/products/${id}`));
+    return await apiFetch<ApiProduct>(`/products/${id}`);
   } catch (e: any) {
     if (e?.status === 404) return null;
     throw e;

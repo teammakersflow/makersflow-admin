@@ -13,6 +13,8 @@
  * `apiFetch` unwraps `data` for you and throws on failure.
  */
 
+import { normalise } from "./normalise";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const ACCESS_TOKEN_KEY = "mf_access_token";
@@ -104,7 +106,11 @@ export async function apiFetch<T = unknown>(
     throw new ApiError(json?.message || res.statusText || "Request failed", res.status);
   }
 
-  return json?.data as T;
+  // Normalise dates and Decimal strings here so EVERY caller benefits.
+  // Pages that call apiFetch directly (e.g. the dashboard) previously
+  // skipped this and crashed on `created_at.slice is not a function`.
+  const endpoint = "/" + path.replace(/^\//, "").split("?")[0].split("/")[0];
+  return normalise(endpoint, json?.data) as T;
 }
 
 /** Same as apiFetch but also returns the `pagination` block when present. */
@@ -117,5 +123,6 @@ export async function apiFetchWithMeta<T = unknown>(
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(json?.message || res.statusText, res.status);
-  return { data: json?.data as T, pagination: json?.pagination };
+  const endpoint = "/" + path.replace(/^\//, "").split("?")[0].split("/")[0];
+  return { data: normalise(endpoint, json?.data) as T, pagination: json?.pagination };
 }

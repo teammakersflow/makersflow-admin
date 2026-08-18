@@ -40,6 +40,7 @@
  */
 
 import { API_URL, tokenStore } from "./api-client";
+import { normaliseRow } from "./normalise";
 
 /** Tables the NestJS backend currently exposes. */
 /** Endpoint paths the NestJS backend exposes. */
@@ -74,20 +75,6 @@ const UNSUPPORTED_TABLES: Record<string, string> = {
  *
  * If the backend adds a new Decimal column, add it here too.
  */
-const DECIMAL_COLUMNS: Record<string, string[]> = {
-  coupons: ["discount_value", "minimum_order_amount", "maximum_discount", "max_discount_amount", "min_order_amount"],
-  course_purchases: ["amount_paid"],
-  courses: ["price", "gst_rate"],
-  invoices: ["amount", "tax_amount"],
-  lesson_progress: ["current_time_secs", "watch_percentage", "time_spent_secs"],
-  order_items: ["unit_price"],
-  orders: ["total_amount", "discount_amount", "subtotal", "tax_amount"],
-  payments: ["amount", "refund_amount"],
-  products: ["price", "original_price", "gst_rate", "weight", "weight_kg"],
-  promo_codes: ["min_order_amount", "max_discount_amount"],
-  quiz_attempts: ["score"],
-  refunds: ["amount"],
-};
 
 
 /**
@@ -100,66 +87,9 @@ const DECIMAL_COLUMNS: Record<string, string[]> = {
  * Normalise every known date column to an ISO string on arrival so all
  * call sites can rely on it. Invalid or missing values become null.
  */
-const DATE_COLUMNS: Record<string, string[]> = {
-  orders: ["created_at", "updated_at", "estimated_delivery"],
-  payments: ["created_at", "updated_at", "refunded_at"],
-  products: ["created_at", "updated_at"],
-  courses: ["created_at", "updated_at"],
-  categories: ["created_at"],
-  coupons: ["created_at", "expiry_date"],
-  users: ["created_at", "updated_at"],
-  enrollments: ["enrolled_at", "completed_at", "expires_at", "created_at"],
-  reviews: ["created_at", "updated_at"],
-  notifications: ["created_at"],
-  certificates: ["created_at", "issued_at"],
-  modules: ["created_at"],
-  lessons: ["created_at"],
-  news: ["created_at", "updated_at"],
-  announcements: ["created_at", "scheduled_at"],
-  promotions: ["created_at", "expires_at"],
-  promo_codes: ["created_at", "expiry_at"],
-  coupon_usage: ["used_at", "created_at"],
-  course_purchases: ["created_at", "purchased_at"],
-  settings: ["updated_at"],
-};
 
-function toIsoString(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") {
-    // Already ISO-ish — keep as-is so existing comparisons stay valid.
-    if (!Number.isNaN(Date.parse(value))) return value;
-    return null;
-  }
-  if (typeof value === "number") {
-    // Epoch seconds vs milliseconds: values below ~1e11 are seconds.
-    const ms = value < 1e11 ? value * 1000 : value;
-    const d = new Date(ms);
-    return Number.isNaN(d.getTime()) ? null : d.toISOString();
-  }
-  const d = new Date(value as any);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
 
-function coerceDates(table: string, row: any): any {
-  const cols = DATE_COLUMNS[table];
-  if (!cols || row == null || typeof row !== "object") return row;
-  cols.forEach((c) => {
-    if (c in row) row[c] = toIsoString(row[c]);
-  });
-  return row;
-}
 
-function coerceDecimals(table: string, row: any): any {
-  const cols = DECIMAL_COLUMNS[table];
-  if (!cols || row == null || typeof row !== "object") return row;
-  cols.forEach((c) => {
-    const v = row[c];
-    if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) {
-      row[c] = Number(v);
-    }
-  });
-  return row;
-}
 
 export type DbResult<T = any> = {
   data: T | null;
@@ -430,12 +360,12 @@ class QueryBuilder implements PromiseLike<DbResult> {
         if (!row && this.singleMode === "single") {
           return { data: null, error: { message: "No rows found" } };
         }
-        return { data: row ? coerceDates(this.table, coerceDecimals(this.table, row)) : null, error: null };
+        return { data: row ? normaliseRow(this.endpoint!, row) : null, error: null };
       }
 
       let rows = await request(this.endpoint);
       if (!Array.isArray(rows)) rows = rows == null ? [] : [rows];
-      rows = rows.map((r: any) => coerceDates(this.table, coerceDecimals(this.table, r)));
+      rows = rows.map((r: any) => normaliseRow(this.endpoint!, r));
 
       rows = applyFilters(rows, this.filters);
 
