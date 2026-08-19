@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { uploadToS3, deleteFromS3, extractS3Key } from "@/lib/s3Upload";
 import { backendApi } from "@/lib/backend-api";
 import { Plus, Trash2, Paperclip, FileText, Link2, Video, ExternalLink } from "lucide-react";
+
 
 // Manage per-lesson resources (PDFs, links, videos). Both the mobile app and
 // the web app read lesson_resources for the lesson being watched.
@@ -26,6 +28,8 @@ export default function ResourcesPage() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     backendApi.endpoint("/courses").select("id, title").order("title")
@@ -63,26 +67,122 @@ export default function ResourcesPage() {
 
   async function addResource() {
     setError("");
-    if (!form.title.trim()) { setError("Title is required"); return; }
+
+    if (!form.title.trim()) {
+      setError("Title is required");
+      return;
+    }
+
+    if (!form.url.trim()) {
+      setError("URL or file is required");
+      return;
+    }
+
     let url = form.url.trim();
-    if (!url) { setError("URL is required"); return; }
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
     setSaving(true);
-    const { error: err } = await backendApi.endpoint("/lesson-resources").insert({
-      lesson_id: lessonId,
-      title: form.title.trim(),
-      url,
-      type: form.type,
-    });
-    setSaving(false);
-    if (err) { setError(err.message); return; }
-    setForm(EMPTY);
-    load();
+
+    try {
+      const { error: err } = await backendApi
+        .endpoint("/lesson-resources")
+        .insert({
+          lesson_id: Number(lessonId),
+          title: form.title.trim(),
+          url,
+          type: form.type,
+        });
+
+      if (err) throw new Error(err.message);
+
+      setForm(EMPTY);
+      load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to add resource"
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleFileUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    setError("");
+    setUploading(true);
+
+    try {
+      const url = await uploadToS3(file, "resources");
+
+      const detectedType =
+        file.type === "application/pdf"
+          ? "pdf"
+          : file.type.startsWith("video/")
+          ? "video"
+          : "file";
+
+      const { error: err } = await backendApi
+        .endpoint("/lesson-resources")
+        .insert({
+          lesson_id: Number(lessonId),
+          title: form.title.trim() || file.name,
+          url,
+          type: detectedType,
+        });
+
+      if (err) {
+        // Remove the S3 object if database insertion fails.
+        const key = extractS3Key(url, "resources");
+        if (key) {
+          await deleteFromS3(key);
+        }
+
+        throw new Error(err.message);
+      }
+
+      setForm(EMPTY);
+      load();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to upload resource"
+      );
+    } finally {
+      setUploading(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   }
 
   async function remove(id: string) {
     if (!confirm("Delete this resource?")) return;
-    await backendApi.endpoint("/lesson-resources").delete().eq("id", id);
+
+    const resource = resources.find((r) => r.id === id);
+
+    if (resource?.url?.includes("amazonaws.com")) {
+      const key = extractS3Key(resource.url, "resources");
+
+      if (key) {
+        await deleteFromS3(key);
+      }
+    }
+
+    await backendApi
+      .endpoint("/lesson-resources")
+      .delete()
+      .eq("id", id);
+
     load();
   }
 
@@ -132,12 +232,45 @@ export default function ResourcesPage() {
                 placeholder="Arduino pinout cheat-sheet"
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
               />
-              <input
-                value={form.url}
-                onChange={(e) => setForm({ ...form, url: e.target.value })}
-                placeholder="https://…/cheatsheet.pdf"
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-              />
+              <div className="space-y-2">
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.zip,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*,video/*"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+
+                <input
+                  value={form.url}
+                  onChange={(e) =>
+                    setForm({ ...form, url: e.target.value })
+                  }
+                  placeholder="https://example.com/resource.pdf"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full"
+                />
+
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.zip,.mp4,.webm,.mov,.doc,.docx,.ppt,.pptx"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="resource-upload"
+                  />
+
+                  <label
+                    htmlFor="resource-upload"
+                    className="cursor-pointer flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-sm hover:bg-gray-50"
+                  >
+                    <Paperclip size={16} />
+                    {uploading ? "Uploading..." : "Upload to S3"}
+                  </label>
+                </div>
+              </div>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}

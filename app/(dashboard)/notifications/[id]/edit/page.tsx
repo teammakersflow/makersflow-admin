@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
+import { backendApi } from "@/lib/backend-api";
 
 export default function EditNotificationPage() {
   const router = useRouter();
@@ -14,35 +15,80 @@ export default function EditNotificationPage() {
   });
 
   useEffect(() => {
-    fetch(`/api/announcements/${id}`)
-      .then((r) => r.json())
-      .then(({ data }) => {
-        if (data) setForm({
+    async function loadAnnouncement() {
+      if (!id) return;
+
+      setLoading(true);
+
+      const { data, error } = await backendApi
+        .endpoint("/announcements")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "[notifications] Failed to load announcement:",
+          error
+        );
+        alert(`Failed to load notification: ${error.message}`);
+      } else if (data) {
+        setForm({
           title: data.title || "",
           message: data.message || "",
           type: data.type || "info",
           link_url: data.link_url || "",
           status: data.status || "draft",
         });
-        setLoading(false);
-      });
+      }
+
+      setLoading(false);
+    }
+
+    loadAnnouncement();
   }, [id]);
 
   const handleSave = async () => {
-    if (!form.title.trim()) { alert("Title is required."); return; }
-    if (!form.message.trim()) { alert("Message is required."); return; }
+    if (!form.title.trim()) {
+      alert("Title is required.");
+      return;
+    }
+
+    if (!form.message.trim()) {
+      alert("Message is required.");
+      return;
+    }
+
+    if (!id) {
+      alert("Notification ID is missing.");
+      return;
+    }
+
     setSaving(true);
 
-    const res = await fetch(`/api/announcements/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, link_url: form.link_url || null }),
-    });
+    const { error } = await backendApi
+      .endpoint("/announcements")
+      .update({
+        title: form.title.trim(),
+        message: form.message.trim(),
+        type: form.type,
+        link_url: form.link_url.trim() || null,
+        status: form.status,
+      })
+      .eq("id", id);
 
-    const json = await res.json();
     setSaving(false);
 
-    if (!res.ok) { alert(json.error || "Failed to save."); return; }
+    if (error) {
+      console.error(
+        "[notifications] Failed to update announcement:",
+        error
+      );
+
+      alert(`Failed to save: ${error.message}`);
+      return;
+    }
+
     router.push("/notifications");
   };
 

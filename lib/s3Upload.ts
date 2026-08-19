@@ -20,7 +20,7 @@ const PUBLIC_BASE = process.env.NEXT_PUBLIC_S3_PUBLIC_BASE_URL;
  * with a validation error, so they are funnelled into 'uploads'.
  */
 // The backend now accepts all of these directly.
-type AppFolder = "courses" | "products" | "news" | "avatars" | "uploads";
+type AppFolder = "courses" | "products" | "news" | "avatars" | "uploads" | "lessons" | "resources";
 
 export async function uploadToS3(file: File, folder: AppFolder): Promise<string> {
   const token = tokenStore.getAccessToken();

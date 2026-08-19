@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save } from "lucide-react";
+import { backendApi } from "@/lib/backend-api";
 
 export default function NewNotificationPage() {
   const router = useRouter();
@@ -15,24 +16,49 @@ export default function NewNotificationPage() {
   const [loading, setLoading] = useState(false);
 
   async function createNotification() {
-    if (!title.trim()) { alert("Title is required"); return; }
-    if (!message.trim()) { alert("Message is required"); return; }
+    if (!title.trim()) {
+      alert("Title is required");
+      return;
+    }
+
+    if (!message.trim()) {
+      alert("Message is required");
+      return;
+    }
 
     setLoading(true);
 
-    const res = await fetch("/api/announcements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, message, type, link_url: linkUrl || null, status, scheduled_at: scheduledAt || null }),
-    });
+    const { data, error } = await backendApi
+      .endpoint("/announcements")
+      .insert({
+        title: title.trim(),
+        message: message.trim(),
+        type,
+        link_url: linkUrl.trim() || null,
+        status,
+        scheduled_at: scheduledAt
+          ? new Date(scheduledAt).toISOString()
+          : null,
+      })
+      .select()
+      .single();
 
-    const json = await res.json();
     setLoading(false);
 
-    if (!res.ok) {
-      alert(json.error || "Failed to send notification");
+    if (error) {
+      console.error(
+        "[notifications] Failed to create announcement:",
+        error,
+      );
+
+      alert(`Failed to send notification: ${error.message}`);
       return;
     }
+
+    console.log(
+      "[notifications] Announcement created:",
+      data,
+    );
 
     router.push("/notifications");
   }

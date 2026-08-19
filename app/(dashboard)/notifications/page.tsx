@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Edit2, Trash2, Calendar, Eye, Bell, CheckCircle, AlertTriangle, Info } from "lucide-react";
+import { backendApi } from "@/lib/backend-api";
 
 type NotificationItem = {
   id: string;
@@ -24,22 +25,53 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    fetch("/api/announcements")
-      .then((r) => r.json())
-      .then(({ data }) => { setItems(data ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
+    async function loadAnnouncements() {
+      setLoading(true);
+
+      const { data, error } = await backendApi
+        .endpoint("/announcements")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[notifications] Failed to load announcements:", error);
+        alert(error.message);
+        setItems([]);
+      } else {
+        setItems((data ?? []) as NotificationItem[]);
+      }
+
+      setLoading(false);
+    }
+
+    loadAnnouncements();
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this notification? This cannot be undone.")) return;
-    setDeletingId(id);
-    const res = await fetch(`/api/announcements/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      setItems((prev) => prev.filter((n) => n.id !== id));
-    } else {
-      alert("Failed to delete. Please try again.");
+    if (!confirm("Delete this notification? This cannot be undone.")) {
+      return;
     }
+
+    setDeletingId(id);
+
+    const { error } = await backendApi
+      .endpoint("/announcements")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(
+        "[notifications] Failed to delete announcement:",
+        error,
+      );
+
+      alert(`Failed to delete: ${error.message}`);
+    } else {
+      setItems((prev) =>
+        prev.filter((n) => String(n.id) !== String(id)),
+      );
+    }
+
     setDeletingId(null);
   };
 

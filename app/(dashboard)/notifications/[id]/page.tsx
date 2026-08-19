@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Calendar, Edit2, ExternalLink } from "lucide-react";
+import { backendApi } from "@/lib/backend-api";
 
 type NotificationItem = {
   id: string; title: string; message: string;
@@ -16,9 +17,31 @@ export default function ViewNotificationPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/announcements/${id}`)
-      .then((r) => r.json())
-      .then(({ data }) => { setItem(data); setLoading(false); });
+    async function loadAnnouncement() {
+      if (!id) return;
+
+      setLoading(true);
+
+      const { data, error } = await backendApi
+        .endpoint("/announcements")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "[notifications] Failed to load announcement:",
+          error
+        );
+        setItem(null);
+      } else {
+        setItem(data as NotificationItem | null);
+      }
+
+      setLoading(false);
+    }
+
+    loadAnnouncement();
   }, [id]);
 
   const statusColor = (s: string) =>

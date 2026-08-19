@@ -41,7 +41,7 @@ export type Lesson = {
   order: number;
   order_index: number;
   duration_secs: number | null;
-  notes: string | null;
+  notes: string[] | null;
   is_preview: boolean;
   created_at: string;
 };
@@ -84,6 +84,6 @@ export type LessonFormData = {
   order: number;
   order_index: number;
   duration_secs: number;
-  notes: string;
+  notes: string[];
   is_preview: boolean;
 };

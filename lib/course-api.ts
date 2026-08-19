@@ -196,7 +196,7 @@ export async function createModule(courseId: string, data: ModuleFormData) {
     .endpoint("/modules")
     .insert([
       {
-        course_id: courseId,
+        course_id: Number(courseId),
         title: data.title,
         order: data.order,
         order_index: data.order_index,
@@ -260,14 +260,14 @@ export async function createLesson(
     .endpoint("/lessons")
     .insert([
       {
-        module_id: moduleId,
+        module_id: Number(moduleId),
         title: data.title,
         content: data.content || null,
         video_url: data.video_url || null,
         order: data.order,
         order_index: data.order_index,
         duration_secs: data.duration_secs || null,
-        notes: data.notes || null,
+        notes: data.notes,
         is_preview: data.is_preview,
       },
     ])
@@ -295,7 +295,7 @@ export async function updateLesson(
       order: data.order,
       order_index: data.order_index,
       duration_secs: data.duration_secs || null,
-      notes: data.notes || null,
+      notes: data.notes,
       is_preview: data.is_preview,
     })
     .eq("id", lessonId)
@@ -327,7 +327,7 @@ export async function deleteLesson(lessonId: string) {
 export async function uploadThumbnail(file: File): Promise<string> {
   // Was the previous backend Storage ("course-media" bucket). Now goes through the
   // backend's presigned S3 upload; see lib/s3Upload.ts for the caveats.
-  return uploadToS3(file, "courses");
+  return uploadToS3(file, "lessons");
 }
 
 export async function uploadVideo(file: File): Promise<string> {
@@ -335,5 +335,5 @@ export async function uploadVideo(file: File): Promise<string> {
   // NOTE: presigned PUT uploads are a single request, so very large video
   // files depend on the browser holding the whole upload — there is no
   // multipart/resumable support on the backend yet.
-  return uploadToS3(file, "courses");
+  return uploadToS3(file, "lessons");
 }

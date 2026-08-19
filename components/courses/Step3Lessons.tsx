@@ -37,7 +37,7 @@ const EMPTY_LESSON: LessonFormData = {
   order: 1,
   order_index: 1,
   duration_secs: 0,
-  notes: "",
+  notes: [],
   is_preview: false,
 };
 
@@ -110,7 +110,11 @@ export default function Step3Lessons({
       order: lesson.order,
       order_index: lesson.order_index,
       duration_secs: lesson.duration_secs || 0,
-      notes: lesson.notes || "",
+      notes: Array.isArray(lesson.notes)
+        ? lesson.notes
+        : lesson.notes
+          ? [lesson.notes]
+          : [],
       is_preview: lesson.is_preview,
     });
     setVideoFileName(
@@ -144,11 +148,11 @@ async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
   try {
     // delete old video from S3 if replacing
     if (form.video_url?.includes('amazonaws.com')) {
-      const key = extractS3Key(form.video_url, 'courses');
+      const key = extractS3Key(form.video_url, "lessons");
       if (key) await deleteFromS3(key);
     }
 
-    const url = await uploadToS3(file, 'courses');
+    const url = await uploadToS3(file, "lessons");
     setField("video_url", url);
 
     // auto-set duration
@@ -170,7 +174,7 @@ async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
 async function removeVideo() {
   if (form.video_url?.includes('amazonaws.com')) {
-    const key = extractS3Key(form.video_url, 'courses');
+    const key = extractS3Key(form.video_url, 'lessons');
     if (key) await deleteFromS3(key);
   }
 
@@ -247,7 +251,7 @@ async function handleDelete(moduleId: string, lesson: Lesson) {
 
     // clean up S3 video in the background
     if (lesson.video_url?.includes('amazonaws.com')) {
-      const key = extractS3Key(lesson.video_url, 'courses');
+      const key = extractS3Key(lesson.video_url, "lessons");
       if (key) await deleteFromS3(key);
     }
   } catch (err) {
@@ -648,13 +652,16 @@ function LessonForm({
           <span className="text-gray-400 font-normal">— optional</span>
         </label>
         <textarea
-          value={form.notes}
-          onChange={(e) => setField("notes", e.target.value)}
-          placeholder="Additional notes for this lesson..."
-          rows={2}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-            outline-none bg-white transition focus:ring-2 focus:ring-blue-500
-            focus:border-blue-500 resize-none"
+          value={form.notes.join("\n")}
+          onChange={(e) =>
+            setField(
+              "notes",
+              e.target.value
+                .split("\n")
+                .map((note) => note.trim())
+                .filter(Boolean)
+            )
+          }
         />
       </div>
 
