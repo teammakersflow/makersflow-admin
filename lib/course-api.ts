@@ -27,16 +27,17 @@ export async function fetchCategories() {
  * runs ValidationPipe with `forbidNonWhitelisted: true`, so sending any
  * other key makes the whole request fail with 400.
  *
- * `gst_rate` exists as a column in the DB but is NOT in the DTO, so it is
- * stripped here with a warning — meaning a GST rate entered by an admin is
- * currently NOT saved for courses. Ask the backend team to add it (see
- * BACKEND_TODO.md) and then delete this stripping.
+ * `gst_rate` and `hsn_code` are now accepted by the DTO and sent normally.
+ * Anything else unknown is still stripped, because the backend rejects
+ * unknown fields (forbidNonWhitelisted) with a 400.
  *
  * `updated_at` is managed by the database and must not be sent.
  */
 const COURSE_DTO_FIELDS = new Set([
   "title", "description", "slug", "category", "thumbnail_url", "images",
   "level", "price", "is_free", "is_published", "instructor_id",
+  // Added to CreateCourseDto/UpdateCourseDto by the backend.
+  "gst_rate", "hsn_code",
 ]);
 
 function toCourseDtoPayload(payload: Record<string, any>): Record<string, any> {
@@ -133,7 +134,7 @@ export async function createCourse(data: CourseFormData) {
         images: data.images ?? [],
         level: data.level.toLowerCase(),
         price: data.is_free ? 0 : data.price,
-        gst_rate: data.gst_rate ?? 18,   // stripped until the DTO accepts it
+        gst_rate: data.gst_rate ?? 18,
         is_free: data.is_free,
         is_published: data.is_published,
       }),
@@ -161,7 +162,7 @@ export async function updateCourse(id: string, data: Partial<CourseFormData>) {
       images: data.images ?? [],
       level: data.level,
       price: data.is_free ? 0 : data.price,
-      gst_rate: data.gst_rate ?? 18,          // stripped until the DTO accepts it
+      gst_rate: data.gst_rate ?? 18,
       is_free: data.is_free,
       // updated_at is managed by the DB; sending it would 400.
     }))

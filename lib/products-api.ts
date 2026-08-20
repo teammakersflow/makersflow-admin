@@ -49,11 +49,10 @@ export type ApiProduct = {
  * ⚠️ The backend runs ValidationPipe with `forbidNonWhitelisted: true`, so
  * sending ANY key not listed here fails the whole request with 400.
  *
- * `gst_rate`, `weight_kg`, `hsn_code` and `stock_quantity` exist as columns
- * in the database but are NOT in the DTO yet. They are declared optional
- * here and stripped by `toDtoPayload()` below, with a console warning, so
- * the admin panel keeps working until the backend adds them. See
- * BACKEND_TODO.md.
+ * `gst_rate`, `weight_kg`, `hsn_code` and `stock_quantity` are now accepted
+ * by the backend DTO and are sent normally. `toDtoPayload()` still guards
+ * against any OTHER unknown key, because the backend rejects unknown fields
+ * (forbidNonWhitelisted) with a 400.
  */
 export type ProductPayload = {
   title?: string;
@@ -81,26 +80,12 @@ export type ProductPayload = {
 
 /** Keys CreateProductDto/UpdateProductDto actually accept today. */
 const DTO_FIELDS = new Set([
-  "title",
-  "slug",
-  "description",
-  "price",
-  "original_price",
-  "category",
-  "subcategory",
-  "thumbnail_url",
-  "images",
-  "videos",
-  "features",
-  "in_stock",
-  "stock",
-  "status",
-  "is_course",
-  "course_id",
-  "gst_rate",
-  "stock_quantity",
-  "weight_kg",
-  "hsn_code",
+  "title", "slug", "description", "price", "original_price", "category",
+  "subcategory", "thumbnail_url", "images", "videos", "features",
+  "in_stock", "stock", "status", "is_course", "course_id",
+  // Added to CreateProductDto/UpdateProductDto by the backend, so these are
+  // now sent and saved correctly (GST rate, weight, HSN code, stock qty).
+  "gst_rate", "stock_quantity", "weight_kg", "hsn_code",
 ]);
 
 /**
