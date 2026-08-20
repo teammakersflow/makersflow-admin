@@ -205,9 +205,12 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => prev.map(c => c.id === editingId ? (data as PromoCode) : c)); resetForm(); setShowForm(false); }
       } else {
-        const { data, error } = await backendApi.endpoint("/promo-codes").insert({ ...fullPayload, used_count: 0 }).select().single();
+        // `used_count` is NOT sent: it is not in CreatePromoCodeDto and the backend
+        // rejects unknown fields (forbidNonWhitelisted) with a 400. The column
+        // defaults to 0 in the database.
+        const { data, error } = await backendApi.endpoint("/promo-codes").insert({ ...fullPayload }).select().single();
         if (error) {
-          const { data: fb } = await backendApi.endpoint("/promo-codes").insert({ ...basePayload, used_count: 0 }).select().single();
+          const { data: fb } = await backendApi.endpoint("/promo-codes").insert({ ...basePayload }).select().single();
           if (fb) { setPromoCodes(prev => [fb as PromoCode, ...prev]); resetForm(); setShowForm(false); }
           else alert(`Error: ${error.message}`);
         } else if (data) { setPromoCodes(prev => [data as PromoCode, ...prev]); resetForm(); setShowForm(false); }
