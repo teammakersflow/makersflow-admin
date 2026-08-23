@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { tokenStore, ApiError } from "@/lib/api-client";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+import { API_URL, GOOGLE_CLIENT_ID } from "@/lib/config";
 
 // Minimal shape of what the Google Identity Services script puts on window.
 // Loaded via <script src="https://accounts.google.com/gsi/client">.

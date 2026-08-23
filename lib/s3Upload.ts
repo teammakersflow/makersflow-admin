@@ -11,8 +11,9 @@
  */
 
 import { API_URL, tokenStore } from "./api-client";
+import { S3_PUBLIC_BASE_URL } from "./config";
 
-const PUBLIC_BASE = process.env.NEXT_PUBLIC_S3_PUBLIC_BASE_URL;
+const PUBLIC_BASE = S3_PUBLIC_BASE_URL;
 
 /**
  * The backend only accepts these folder names (see CreateUploadUrlDto).

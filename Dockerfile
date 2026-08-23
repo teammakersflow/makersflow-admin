@@ -16,16 +16,16 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
     NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
     NEXT_PUBLIC_S3_PUBLIC_BASE_URL=$NEXT_PUBLIC_S3_PUBLIC_BASE_URL
 
-# These are WARNINGS, not hard failures. A missing build arg used to abort the
-# build in ~4s with no obvious cause, which blocked deployment. Now the build
-# completes and the problem is visible: the login page reports a missing
-# client ID, and uploads report a missing public base URL.
+# NOTE: Dokploy applies its Environment settings at RUNTIME, not to
+# `docker build`, so these build args usually arrive empty. lib/config.ts
+# therefore falls back to the correct public values, and the app works
+# either way. Setting them here still overrides those defaults.
 RUN test -n "$NEXT_PUBLIC_API_URL" \
- || echo "WARNING: NEXT_PUBLIC_API_URL build arg not set — the app cannot reach the backend." >&2
+ || echo "note: NEXT_PUBLIC_API_URL build arg not set — using default from lib/config.ts" >&2
 RUN test -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" \
- || echo "WARNING: NEXT_PUBLIC_GOOGLE_CLIENT_ID build arg not set — Google sign-in will not render." >&2
+ || echo "note: NEXT_PUBLIC_GOOGLE_CLIENT_ID build arg not set — using default from lib/config.ts" >&2
 RUN test -n "$NEXT_PUBLIC_S3_PUBLIC_BASE_URL" \
- || echo "WARNING: NEXT_PUBLIC_S3_PUBLIC_BASE_URL build arg not set — file uploads will fail." >&2
+ || echo "note: NEXT_PUBLIC_S3_PUBLIC_BASE_URL build arg not set — using default from lib/config.ts" >&2
 
 COPY package*.json ./
 RUN npm ci

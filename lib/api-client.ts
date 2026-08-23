@@ -15,7 +15,8 @@
 
 import { normalise } from "./normalise";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export { API_URL } from "./config";
+import { API_URL } from "./config";
 
 const ACCESS_TOKEN_KEY = "mf_access_token";
 const REFRESH_TOKEN_KEY = "mf_refresh_token";
