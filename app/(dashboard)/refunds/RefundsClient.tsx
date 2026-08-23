@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import { backendApi } from "@/lib/backend-api";
 import { Search, RefreshCw, AlertCircle, Calendar, CheckCircle2, XCircle, Info, DollarSign, ArrowUpDown } from "lucide-react";
 
@@ -112,7 +113,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
         }`}>{o.status}</span>
       </td>
       <td className="px-6 py-4 text-xs text-gray-500 flex items-center gap-1">
-        <Calendar size={12} /> {new Date(o.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+        <Calendar size={12} /> {formatDateLong(o.created_at)}
       </td>
       {showRefund && (
         <td className="px-6 py-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import { useRouter, useParams } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Calendar, Edit2 } from "lucide-react";
@@ -73,11 +74,7 @@ export default function ViewArticlePage() {
         <div className="flex items-center gap-6 text-sm text-gray-500 border-b border-gray-100 pb-4">
           <div className="flex items-center gap-2">
             <Calendar size={14} />
-            {new Date(article.created_at).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {formatDateLong(article.created_at)}
           </div>
           {article.slug && (
             <div className="text-gray-400">

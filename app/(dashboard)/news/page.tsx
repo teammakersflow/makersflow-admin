@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDate } from "@/lib/format";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
@@ -156,7 +157,7 @@ export default function NewsPage() {
                     <div className="flex items-center gap-2">
                       <Calendar size={14} />
                       {article.created_at
-                        ? new Date(article.created_at).toLocaleDateString()
+                        ? formatDate(article.created_at)
                         : "—"}
                     </div>
                   </td>

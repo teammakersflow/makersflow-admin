@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { Search, Plus, Edit2, Trash2, Calendar, Eye, Bell, CheckCircle, AlertTriangle, Info } from "lucide-react";
 import { backendApi } from "@/lib/backend-api";
@@ -222,7 +223,7 @@ export default function NotificationsPage() {
                     <td className="px-6 py-4 text-gray-600 text-sm">
                       <div className="flex items-center gap-1.5">
                         <Calendar size={13} className="text-gray-400" />
-                        {item.created_at ? new Date(item.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" }) : "—"}
+                        {item.created_at ? formatDateLong(item.created_at) : "—"}
                       </div>
                     </td>
                     <td className="px-6 py-4">

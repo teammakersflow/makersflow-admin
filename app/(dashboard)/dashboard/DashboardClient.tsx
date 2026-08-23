@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { formatDateLong } from "@/lib/format";
 import Link from "next/link";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar
@@ -433,7 +434,7 @@ export default function DashboardClient({ stats, chartData, recentPayments, rece
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{p.profiles?.email ?? "Unknown"}</p>
-                <p className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</p>
+                <p className="text-xs text-gray-400">{formatDateLong(p.created_at)}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-sm font-semibold text-gray-900">₹{p.amount.toLocaleString()}</p>
@@ -467,7 +468,7 @@ export default function DashboardClient({ stats, chartData, recentPayments, rece
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{o.profiles?.email ?? "Unknown"}</p>
-                  <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short" })}</p>
+                  <p className="text-xs text-gray-400">{formatDateLong(o.created_at)}</p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-gray-900">₹{o.total_amount.toLocaleString()}</p>

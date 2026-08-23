@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { formatDate, formatDateLong } from "@/lib/format";
 import { Search, GraduationCap, Calendar, DollarSign, BookOpen, Clock, Download, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -83,9 +84,9 @@ export default function LMSPurchasesClient({ initialEnrollments }: LMSPurchasesC
       e.courses?.title ?? "",
       e.courses?.is_free ? "Free" : String(e.courses?.price ?? 0),
       e.payment_status,
-      new Date(e.enrolled_at).toLocaleDateString("en-IN"),
-      e.completed_at ? new Date(e.completed_at).toLocaleDateString("en-IN") : "",
-      e.expires_at ? new Date(e.expires_at).toLocaleDateString("en-IN") : "",
+      formatDate(e.enrolled_at),
+      e.completed_at ? formatDate(e.completed_at) : "",
+      e.expires_at ? formatDate(e.expires_at) : "",
     ]));
     const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -224,14 +225,14 @@ export default function LMSPurchasesClient({ initialEnrollments }: LMSPurchasesC
                       <td className="px-6 py-4 text-xs text-gray-600 font-medium">
                         <div className="flex items-center gap-1.5">
                           <Calendar size={13} className="text-gray-400" />
-                          {new Date(e.enrolled_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          {formatDateLong(e.enrolled_at)}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-xs font-medium">
                         {e.expires_at ? (
                           <div className={`flex items-center gap-1.5 ${isExpired ? "text-red-600" : "text-gray-600"}`}>
                             <Clock size={13} className="shrink-0" />
-                            {new Date(e.expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            {formatDateLong(e.expires_at)}
                             {isExpired && <span className="text-[9px] font-bold bg-red-100 text-red-600 px-1 rounded">EXPIRED</span>}
                           </div>
                         ) : (
@@ -242,7 +243,7 @@ export default function LMSPurchasesClient({ initialEnrollments }: LMSPurchasesC
                         {e.completed_at ? (
                           <div className="flex items-center gap-1.5">
                             <Calendar size={13} className="text-gray-400" />
-                            {new Date(e.completed_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            {formatDateLong(e.completed_at)}
                           </div>
                         ) : (
                           <span className="text-gray-400 text-xs">In progress</span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { backendApi } from "@/lib/backend-api";
 import { Truck, Save, MapPin, Info, CheckCircle, Package, Clock, TrendingUp, AlertTriangle, RefreshCw } from "lucide-react";
@@ -403,7 +404,7 @@ export default function ShippingPage() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-xs text-gray-500">
-                            {new Date(o.created_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+                            {formatDateLong(o.created_at)}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex gap-1.5">

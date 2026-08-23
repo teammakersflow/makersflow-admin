@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDate } from "@/lib/format";
 import { backendApi } from "@/lib/backend-api";
 import {
   Plus, Trash2, ToggleLeft, ToggleRight, Megaphone, Calendar, Link2, X,
@@ -225,7 +226,7 @@ export default function PromotionsPage() {
                   )}
                   {p.expires_at && (
                     <span className="flex items-center gap-1">
-                      <Calendar size={12} /> until {new Date(p.expires_at).toLocaleDateString()}
+                      <Calendar size={12} /> until {formatDate(p.expires_at)}
                     </span>
                   )}
                 </div>

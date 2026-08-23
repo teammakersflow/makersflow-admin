@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { dateStartsWith, formatDate } from "@/lib/format";
 import { updateOrder, updateOrdersBulk, createNotification } from "@/lib/orders-api";
 import {
   Search, Package, Calendar, ChevronDown, ChevronUp, ShoppingCart,
@@ -159,7 +160,7 @@ function OrderRow({ order, onStatusChange, onRefund, onTrackingUpdate, selected,
 
           <span className="text-xs text-gray-400 flex items-center gap-1">
             <Calendar size={12} />
-            {new Date(order.created_at).toLocaleDateString("en-IN")}
+            {formatDate(order.created_at)}
           </span>
 
           {(order.status === "paid" || order.status === "shipped" || order.status === "delivered" || order.status === "packed") && (
@@ -390,7 +391,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
       o.id, o.profiles?.email ?? "", o.profiles?.full_name ?? "",
       String(o.total_amount), o.status,
       o.razorpay_payment_id ?? "", o.tracking_number ?? "",
-      new Date(o.created_at).toLocaleDateString("en-IN"),
+      formatDate(o.created_at),
     ]));
     const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -401,7 +402,7 @@ export default function OrdersClient({ initialOrders }: { initialOrders: Order[]
 
   const filtered = orders.filter(o => {
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
-    if (dateFilter && !o.created_at.startsWith(dateFilter)) return false;
+    if (dateFilter && !dateStartsWith(o.created_at, dateFilter)) return false;
     const q = search.toLowerCase();
     return !search ||
       o.id.toLowerCase().includes(q) ||

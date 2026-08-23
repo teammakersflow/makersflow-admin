@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDate, formatDateLong } from "@/lib/format";
 import { useRouter, useParams } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
 import { ArrowLeft, Users, DollarSign, BookOpen, BarChart2, Edit, TrendingUp, Clock } from "lucide-react";
@@ -167,7 +168,7 @@ export default function ViewCoursePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-4 border-t border-gray-100 text-sm">
             <div><p className="text-gray-400">Price</p><p className="font-semibold text-green-600 mt-0.5">{course.is_free ? "Free" : `₹${course.price}`}</p></div>
             <div><p className="text-gray-400">GST Rate</p><p className="font-semibold text-gray-900 mt-0.5">{course.gst_rate ?? 18}%</p></div>
-            <div><p className="text-gray-400">Created</p><p className="font-semibold text-gray-900 mt-0.5">{new Date(course.created_at).toLocaleDateString("en-IN")}</p></div>
+            <div><p className="text-gray-400">Created</p><p className="font-semibold text-gray-900 mt-0.5">{formatDate(course.created_at)}</p></div>
             {course.slug && <div><p className="text-gray-400">Slug</p><p className="font-mono text-xs text-gray-600 mt-0.5 truncate">{course.slug}</p></div>}
           </div>
         </div>
@@ -273,7 +274,7 @@ export default function ViewCoursePage() {
                     </div>
                   </td>
                   <td className="px-6 py-3.5 text-sm text-gray-500">
-                    {new Date(e.enrolled_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    {formatDateLong(e.enrolled_at)}
                   </td>
                   <td className="px-6 py-3.5">
                     {isCompleted ? (

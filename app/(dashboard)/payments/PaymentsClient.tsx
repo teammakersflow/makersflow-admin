@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { dateStartsWith, formatDate, formatTime } from "@/lib/format";
 import { backendApi } from "@/lib/backend-api";
 import { Search, TrendingUp, CreditCard, XCircle, AlertCircle, ChevronDown, ChevronUp, Download, RefreshCw, CheckCircle } from "lucide-react";
 
@@ -183,7 +184,7 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
       (p.razorpay_payment_id ?? "").toLowerCase().includes(search.toLowerCase()) ||
       (p.razorpay_order_id ?? "").toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase());
-    const matchDate = !dateFilter || p.created_at.startsWith(dateFilter);
+    const matchDate = dateStartsWith(p.created_at, dateFilter);
     return matchStatus && matchSearch && matchDate;
   });
 
@@ -201,7 +202,7 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
 
   // Today's summary
   const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-  const todayPayments = payments.filter(p => new Date(p.created_at) >= todayStart);
+  const todayPayments = payments.filter(p => p.created_at != null && new Date(p.created_at) >= todayStart);
   const todayRevenue = todayPayments.filter(p => p.status === "captured").reduce((s, p) => s + p.amount, 0);
   const todayCount = todayPayments.filter(p => p.status === "captured").length;
 
@@ -212,7 +213,7 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
       p.profiles?.email ?? p.user_id?.slice(0, 8) ?? "",
       String(p.amount), p.status,
       String(p.refund_amount ?? 0),
-      new Date(p.created_at).toLocaleDateString("en-IN"),
+      formatDate(p.created_at),
     ]));
     const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -390,8 +391,8 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
                             </span>
                           </td>
                           <td className="px-6 py-4 text-xs text-gray-500">
-                            <div>{new Date(p.created_at).toLocaleDateString("en-IN")}</div>
-                            <div className="text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
+                            <div>{formatDate(p.created_at)}</div>
+                            <div className="text-gray-400 mt-0.5">{formatTime(p.created_at)}</div>
                           </td>
                           <td className="px-6 py-4 text-gray-400 text-right">
                             {isExp ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -412,7 +413,7 @@ export default function PaymentsClient({ initialPayments }: PaymentsClientProps)
                                   {p.refund_id ? (
                                     <div className="space-y-0.5 text-xs text-gray-600">
                                       <p><span className="font-semibold">Refund ID:</span> <span className="font-mono">{p.refund_id}</span></p>
-                                      {p.refunded_at && <p><span className="font-semibold">Refunded at:</span> {new Date(p.refunded_at).toLocaleDateString("en-IN")}</p>}
+                                      {p.refunded_at && <p><span className="font-semibold">Refunded at:</span> {formatDate(p.refunded_at)}</p>}
                                       {p.refund_amount && <p><span className="font-semibold">Amount:</span> ₹{p.refund_amount.toLocaleString()}</p>}
                                     </div>
                                   ) : (

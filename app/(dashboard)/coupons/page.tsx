@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { formatDate, formatDateLong } from "@/lib/format";
 import { useRouter } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
 import {
@@ -219,9 +220,9 @@ export default function CouponsPage() {
       String(c.min_order_amount ?? 0),
       c.max_discount_amount ? `₹${c.max_discount_amount}` : "None",
       String(c.used_count), c.usage_limit ? String(c.usage_limit) : "Unlimited",
-      c.expiry_date ? new Date(c.expiry_date).toLocaleDateString("en-IN") : "Never",
+      c.expiry_date ? formatDate(c.expiry_date) : "Never",
       c.is_active && !isExpired(c.expiry_date) ? "Active" : "Inactive",
-      new Date(c.created_at).toLocaleDateString("en-IN"),
+      formatDate(c.created_at),
     ]));
     const csv = rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -367,7 +368,7 @@ export default function CouponsPage() {
                 {form.discount_type === "percentage" ? `${form.discount_value}% off` : `₹${form.discount_value} off`}
                 {form.min_order_amount && Number(form.min_order_amount) > 0 ? ` on orders above ₹${form.min_order_amount}` : ""}
                 {form.max_discount_amount ? ` (max ₹${form.max_discount_amount} discount)` : ""}
-                {form.expiry_date ? ` · Expires ${new Date(form.expiry_date).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}` : ""}
+                {form.expiry_date ? ` · Expires ${formatDateLong(form.expiry_date)}` : ""}
               </p>
             </div>
           )}
@@ -492,7 +493,7 @@ export default function CouponsPage() {
                         {c.expiry_date ? (
                           <span className={`flex items-center gap-1 text-xs ${exp ? "text-red-600 font-semibold" : "text-gray-600"}`}>
                             <Clock size={12} />
-                            {new Date(c.expiry_date).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })}
+                            {formatDateLong(c.expiry_date)}
                             {exp && " (Expired)"}
                           </span>
                         ) : <span className="text-gray-400 text-xs">Never</span>}

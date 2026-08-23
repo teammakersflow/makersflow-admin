@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import { useRouter, useParams } from "next/navigation";
 import { fetchProduct } from "@/lib/products-api";
 import { fetchOrders, fetchUserMap } from "@/lib/orders-api";
@@ -236,7 +237,7 @@ export default function ViewProductPage() {
               <div>
                 <p className="text-gray-400 text-xs">Added On</p>
                 <p className="font-medium text-gray-900 mt-0.5">
-                  {new Date(product.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  {formatDateLong(product.created_at)}
                 </p>
               </div>
             </div>
@@ -320,7 +321,7 @@ export default function ViewProductPage() {
                     </span>
                   </td>
                   <td className="px-6 py-3 text-xs text-gray-500">
-                    {new Date(o.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    {formatDateLong(o.created_at)}
                   </td>
                 </tr>
               ))}

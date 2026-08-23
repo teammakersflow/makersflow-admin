@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { formatDateLong } from "@/lib/format";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { backendApi } from "@/lib/backend-api";
 import {
@@ -481,7 +482,7 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
                       <td className="px-5 py-3.5">
                         {c.expiry_at ? (
                           <span className={`flex items-center gap-1 text-xs ${exp ? "text-red-600 font-semibold" : "text-gray-600"}`}>
-                            <Clock size={12} />{new Date(c.expiry_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}
+                            <Clock size={12} />{formatDateLong(c.expiry_at)}
                             {exp && " (Expired)"}
                           </span>
                         ) : <span className="text-gray-400 text-xs">No expiry</span>}

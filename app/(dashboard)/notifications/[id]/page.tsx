@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateLong } from "@/lib/format";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Calendar, Edit2, ExternalLink } from "lucide-react";
 import { backendApi } from "@/lib/backend-api";
@@ -76,7 +77,7 @@ export default function ViewNotificationPage() {
         <div className="flex flex-wrap items-center gap-6 text-sm text-gray-500 border-b border-gray-100 pb-4">
           <div className="flex items-center gap-2">
             <Calendar size={14} />
-            {new Date(item.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+            {formatDateLong(item.created_at)}
           </div>
           <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${typeColor(item.type)}`}>
             {item.type || "info"}

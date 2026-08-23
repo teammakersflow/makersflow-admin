@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/format";
 import { backendApi } from "@/lib/backend-api";
 import { Star, Check, X, Trash2, MessageSquare } from "lucide-react";
 
@@ -223,7 +224,7 @@ export default function ReviewsPage() {
                       )}
                       <p className="mt-2 text-xs text-gray-500">
                         {r.profiles?.full_name || r.profiles?.email || r.user_id} \u00b7{" "}
-                        {new Date(r.created_at).toLocaleString()}
+                        {formatDateTime(r.created_at)}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2 flex-wrap">

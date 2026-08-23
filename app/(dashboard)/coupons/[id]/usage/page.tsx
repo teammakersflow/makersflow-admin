@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateTime } from "@/lib/format";
 import DataErrorNotice from "@/components/DataErrorNotice";
 import { useRouter, useParams } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
@@ -90,7 +91,7 @@ export default function CouponUsagePage() {
                     <p className="text-xs text-gray-400">{(u.profiles as any)?.email ?? u.user_id.slice(0,8)}</p>
                   </td>
                   <td className="px-6 py-3 text-sm font-semibold text-red-600">−₹{u.discount_amount}</td>
-                  <td className="px-6 py-3 text-xs text-gray-500">{new Date(u.used_at).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}</td>
+                  <td className="px-6 py-3 text-xs text-gray-500">{formatDateTime(u.used_at)}</td>
                 </tr>
               ))}
             </tbody>
