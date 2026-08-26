@@ -6,7 +6,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useRouter } from "next/navigation";
 import { backendApi } from "@/lib/backend-api";
 import { apiFetch, tokenStore } from "@/lib/api-client";
-import { Settings, LogOut, User, Mail, Shield, Store, CreditCard, FileText, Bell, Save, Check } from "lucide-react";
+import { Settings, LogOut, User, Mail, Shield, Store, FileText, Bell, Save, Check } from "lucide-react";
 
 export default function SettingsPage() {
   const { profile } = useProfile();
@@ -257,35 +257,6 @@ export default function SettingsPage() {
             className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition disabled:opacity-40">
             <Save size={15} /> {savingShipping ? "Saving..." : "Save Shipping Fees"}
           </button>
-        </div>
-      </div>
-
-      {/* Razorpay Config Note */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="border-b border-gray-50 px-6 py-4 flex items-center gap-3">
-          <div className="p-2 bg-blue-50 rounded-xl"><CreditCard size={18} className="text-blue-600" /></div>
-          <h2 className="font-semibold text-gray-900">Payment Gateway (Razorpay)</h2>
-        </div>
-        <div className="p-6 space-y-3 text-sm">
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-amber-800 text-sm">
-            <p className="font-semibold mb-1">Keys are in .env.local for security</p>
-            <p className="text-xs text-amber-700">Razorpay keys (KEY_ID, KEY_SECRET, WEBHOOK_SECRET) must be set in your <code className="font-mono bg-amber-100 px-1 rounded">.env.local</code> file and are never stored in the database. Restart the server after changing them.</p>
-          </div>
-          <div className="space-y-2">
-            {[
-              { key: "RAZORPAY_KEY_ID", hint: "rzp_live_XXXXXXXXXXXX" },
-              { key: "RAZORPAY_KEY_SECRET", hint: "Your secret key" },
-              { key: "RAZORPAY_WEBHOOK_SECRET", hint: "From Razorpay webhook settings" },
-              { key: "NEXT_PUBLIC_API_URL", hint: "NestJS backend base URL" },
-              { key: "NEXT_PUBLIC_GOOGLE_CLIENT_ID", hint: "Google OAuth client ID" },
-              { key: "NEXT_PUBLIC_S3_PUBLIC_BASE_URL", hint: "Public S3/CDN base for uploads" },
-            ].map(e => (
-              <div key={e.key} className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-lg border border-gray-100">
-                <code className="text-xs font-mono text-gray-700 flex-1">{e.key}</code>
-                <span className="text-xs text-gray-400">{e.hint}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

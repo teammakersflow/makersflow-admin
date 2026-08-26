@@ -340,8 +340,11 @@ export default function ShippingPage() {
             </div>
           )}
 
-          {/* Orders table */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          {/* Orders table.
+              NOTE: this card used to have `overflow-hidden`, which clipped the
+              table instead of letting the inner `overflow-x-auto` scroll — the
+              Update column was cut off with no way to reach it. */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <h2 className="font-semibold text-gray-900">Active Shipping Orders</h2>
               <button onClick={loadShippingOrders} disabled={ordersLoading}
@@ -359,18 +362,18 @@ export default function ShippingPage() {
                 <p className="text-xs text-gray-400 mt-1">Orders with physical products will appear here</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-b-xl">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Order</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Ship To</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                      <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Tracking</th>
-                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Update</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Order</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Customer</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Ship To</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Amount</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Status</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Date</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Tracking</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Update</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -382,14 +385,14 @@ export default function ShippingPage() {
                       const isRemote = addr?.state && REMOTE_STATES.includes(addr.state);
                       return (
                         <tr key={o.id} className="hover:bg-gray-50 transition">
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <p className="font-mono text-xs font-bold text-gray-800">#{o.id.slice(0,8).toUpperCase()}</p>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <p className="text-sm font-medium text-gray-900">{(o.profiles as any)?.full_name ?? "—"}</p>
                             <p className="text-xs text-gray-400">{(o.profiles as any)?.email ?? ""}</p>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <p className="text-xs text-gray-700 max-w-[180px]">{addrStr}</p>
                             {isRemote && (
                               <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
@@ -397,16 +400,16 @@ export default function ShippingPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-4 font-semibold text-gray-900">₹{o.total_amount.toLocaleString()}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 font-semibold text-gray-900">₹{o.total_amount.toLocaleString()}</td>
+                          <td className="px-4 py-4">
                             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[o.status] ?? "bg-gray-100 text-gray-700"}`}>
                               {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-xs text-gray-500">
+                          <td className="px-4 py-4 text-xs text-gray-500">
                             {formatDateLong(o.created_at)}
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <div className="flex gap-1.5">
                               <input
                                 value={trackingInputs[o.id] ?? (o as any).tracking_number ?? ""}
@@ -420,7 +423,7 @@ export default function ShippingPage() {
                               </button>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <select value={o.status}
                               onChange={e => updateOrderStatus(o.id, e.target.value)}
                               disabled={statusUpdate === o.id}

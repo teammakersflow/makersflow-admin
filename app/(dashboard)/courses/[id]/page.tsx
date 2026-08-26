@@ -248,7 +248,8 @@ export default function ViewCoursePage() {
             <p className="text-xs text-gray-400 mt-1">Enrollments appear here once payment is completed</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
                 <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Student</th>
@@ -303,7 +304,8 @@ export default function ViewCoursePage() {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

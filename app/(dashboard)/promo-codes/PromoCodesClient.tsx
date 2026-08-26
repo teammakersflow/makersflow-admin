@@ -426,7 +426,7 @@ export default function PromoCodesClient({ loadError = "", initialPromoCodes, co
           <p className="text-sm text-gray-400 mt-1">{search ? `No codes match "${search}"` : "Create your first code above"}</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs font-semibold uppercase">

@@ -77,7 +77,8 @@ export default function CouponUsagePage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100"><h2 className="font-semibold text-gray-900">Who Used This Coupon</h2></div>
         {usage.length === 0 ? <p className="px-6 py-12 text-center text-gray-400">No one has used this coupon yet</p> : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
               <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Discount</th>
@@ -95,7 +96,8 @@ export default function CouponUsagePage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
     </div>

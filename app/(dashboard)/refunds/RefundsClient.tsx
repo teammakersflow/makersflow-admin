@@ -208,7 +208,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
             <p className="text-sm text-gray-400 mt-1">All paid/shipped orders will appear here</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs font-semibold uppercase">
@@ -236,7 +236,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
             <p className="text-sm text-gray-400 mt-1">When customers request refunds in the app, they appear here</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-orange-50 border-b border-orange-100 text-gray-500 text-xs font-semibold uppercase">
@@ -262,7 +262,7 @@ export default function RefundsClient({ initialOrders }: { initialOrders: OrderF
             <p className="font-medium text-gray-600">No refunded orders yet</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 text-xs font-semibold uppercase">

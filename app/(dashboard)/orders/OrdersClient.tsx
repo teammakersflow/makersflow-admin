@@ -150,11 +150,22 @@ function OrderRow({ order, onStatusChange, onRefund, onTrackingUpdate, selected,
             <span className="text-sm font-bold text-gray-900">₹{order.total_amount.toLocaleString()}</span>
           </div>
 
+          {/* Fixed width: without it the control sizes itself to the longest
+              option ("Refund requested"), which made the pill inconsistent
+              and pushed the rest of the row out of alignment. */}
           <select value={order.status} onClick={e => e.stopPropagation()}
             onChange={e => onStatusChange(order.id, e.target.value)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold border-0 cursor-pointer outline-none ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-700"}`}>
+            title={statusLabel(order.status)}
+            className={`w-[130px] shrink-0 truncate rounded-full pl-3 pr-6 py-1 text-xs font-semibold border-0 cursor-pointer outline-none appearance-none bg-no-repeat ${STATUS_COLORS[order.status] ?? "bg-gray-100 text-gray-700"}`}
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'><path d='M6 9l6 6 6-6'/></svg>\")",
+              backgroundPosition: "right 8px center",
+            }}>
+            {/* statusLabel() turns "out_for_delivery" into "Out for delivery";
+                the raw formatting here previously left the underscores in. */}
             {ALL_ORDER_STATUSES.map(s => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s}>{statusLabel(s)}</option>
             ))}
           </select>
 
