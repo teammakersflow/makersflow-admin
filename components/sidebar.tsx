@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useProfile } from "@/hooks/useProfile";
@@ -7,7 +9,7 @@ import {
   LayoutDashboard, BookOpen, Package, Newspaper, Bell,
   FolderOpen, Tag, ShoppingCart, CreditCard, GraduationCap,
   RefreshCw, BarChart3, Users, Settings, UserCircle2,
-  LogOut, ChevronRight, Truck, Megaphone, Star, HelpCircle, Paperclip, StickyNote
+  LogOut, ChevronRight, Truck, Megaphone, Star, HelpCircle, Paperclip, StickyNote, Menu, X,
 } from "lucide-react";
 import { apiFetch, tokenStore } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
@@ -72,6 +74,7 @@ const NAV = [
 ];
 
 export default function Sidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const { profile } = useProfile();
   const router = useRouter();
@@ -93,7 +96,25 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-60 shrink-0 bg-[#0f1117] flex flex-col h-full">
+    <>
+      {/* Backdrop, only while the drawer is open on small screens */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Toggle. Fixed so it stays reachable; hidden once the sidebar is
+          permanently visible at lg and above. */}
+      <button
+        onClick={() => setMobileOpen(o => !o)}
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-lg bg-[#0f1117] text-white shadow-lg">
+        {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+      </button>
+
+      <aside className={`w-60 shrink-0 bg-[#0f1117] flex flex-col h-full
+        fixed inset-y-0 left-0 z-40 transition-transform duration-200
+        lg:static lg:translate-x-0
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-white/5">
         <div className="h-8 w-8 rounded-lg bg-blue-500 grid place-items-center text-white font-bold text-sm shadow-lg shadow-blue-500/20">
@@ -118,6 +139,7 @@ export default function Sidebar() {
                 return (
                   <li key={href}>
                     <Link href={href}
+                      onClick={() => setMobileOpen(false)}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all group ${
                         active
                           ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
@@ -153,5 +175,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

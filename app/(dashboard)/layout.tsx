@@ -120,7 +120,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="sticky top-0 z-40 h-14 flex items-center justify-between border-b border-gray-200 bg-white px-6 gap-4">
+        {/* pl-14 on small screens leaves room for the fixed sidebar toggle,
+            which would otherwise sit on top of the search box. */}
+        <header className="sticky top-0 z-40 h-14 flex items-center justify-between border-b border-gray-200 bg-white pl-14 pr-4 lg:px-6 gap-4">
           <div className="relative flex-1 max-w-lg">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input ref={inputRef} type="text"

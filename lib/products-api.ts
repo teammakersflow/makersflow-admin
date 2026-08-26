@@ -106,7 +106,7 @@ export function toDtoPayload(payload: ProductPayload): Record<string, any> {
   if (dropped.length > 0) {
     console.warn(
       `[products] These fields were not sent because the backend DTO does not accept them yet: ${dropped.join(", ")}. ` +
-      `They exist in the database — ask the backend team to add them to CreateProductDto/UpdateProductDto (see BACKEND_TODO.md).`
+      `If a field belongs in the product record, ask the backend team to add it to CreateProductDto/UpdateProductDto.`
     );
   }
   return accepted;

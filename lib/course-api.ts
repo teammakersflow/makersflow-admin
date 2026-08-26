@@ -51,7 +51,7 @@ function toCourseDtoPayload(payload: Record<string, any>): Record<string, any> {
   if (dropped.length > 0) {
     console.warn(
       `[courses] Not sent (backend DTO does not accept them yet): ${dropped.join(", ")}. ` +
-      `See BACKEND_TODO.md — gst_rate needs adding to CreateCourseDto/UpdateCourseDto.`
+      `If a field belongs in the course record, ask the backend team to add it to CreateCourseDto/UpdateCourseDto.`
     );
   }
   return accepted;
