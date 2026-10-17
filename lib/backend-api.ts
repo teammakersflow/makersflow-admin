@@ -426,14 +426,12 @@ class QueryBuilder implements PromiseLike<DbResult> {
 }
 
 export const backendApi = {
-  /**
-   * Call a REST endpoint on the NestJS backend.
-   *
-   *   backendApi.endpoint("/coupons").select("*")
-   *
-   * The argument is the HTTP path on api.makersflow.in — NOT a database
-   * table. Nothing here touches a database directly.
-   */
+  async patch(path: string, body: Record<string, unknown>) {
+    return request(path, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
   endpoint(path: string) {
     return new QueryBuilder(path);
   },

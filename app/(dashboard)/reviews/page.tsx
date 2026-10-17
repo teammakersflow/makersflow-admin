@@ -107,13 +107,17 @@ export default function ReviewsPage() {
 
   async function setStatus(id: string, status: Review["status"]) {
     setBusy(id);
-    const { error } = await backendApi.endpoint("/reviews").update({ status }).eq("id", id);
-    setBusy(null);
-    if (error) {
-      alert(`Failed: ${error.message}`);
-      return;
+
+    try {
+      await backendApi.patch(`/reviews/${id}/status`, { status });
+      await load();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown error";
+      alert(`Failed: ${message}`);
+    } finally {
+      setBusy(null);
     }
-    load();
   }
 
   async function remove(id: string) {
