@@ -88,7 +88,7 @@ export default function QuizzesPage() {
     if (form.correct >= opts.length) { setError("Correct answer must be one of the options"); return; }
     setSaving(true);
     const { error: err } = await backendApi.endpoint("/quiz-questions").insert({
-      lesson_id: lessonId,
+      lesson_id: Number(lessonId),
       question_text: form.question_text.trim(),
       options: opts,
       correct_option_index: form.correct,
