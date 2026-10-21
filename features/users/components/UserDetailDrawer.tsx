@@ -11,9 +11,29 @@ interface Props {
   onClose: () => void;
 }
 
-type Enrollment = { id: string; enrolled_at: string; payment_status: string; course_id: string; courses?: { title: string; price: number } | null };
-type Purchase = { id: string; created_at: string; total_amount: number; status: string; items?: any[] };
-type Course = { id: string; title: string };
+type Enrollment = {
+  id: string;
+  enrolled_at: string;
+  payment_status: string;
+  course_id: string | number;
+  courses?: { title: string; price?: number } | null;
+  course?: { title: string; price?: number } | null;
+};
+
+type Purchase = {
+  id: string;
+  created_at: string;
+  total_amount: number;
+  status: string;
+  items?: any[];
+};
+
+type Course = {
+  id: string | number;
+  title: string;
+  
+
+};
 
 export default function UserDetailDrawer({ user, onClose }: Props) {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -37,16 +57,41 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     setLoading(true);
     setActionMsg('');
     Promise.all([
-      backendApi.endpoint("/enrollments").select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false }),
-      backendApi.endpoint("/orders").select('id, created_at, total_amount, status, items').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-      backendApi.endpoint("/courses").select('id, title').eq('is_published', true).order('title'),
-    ]).then(([e, p, c]) => {
-      setEnrollments((e.data ?? []) as unknown as Enrollment[]);
-      setPurchases(p.data ?? []);
-      setAllCourses(c.data ?? []);
-      setLoading(false);
-    });
-  }, [user]);
+      backendApi
+        .endpoint("/enrollments")
+        .select("id, enrolled_at, payment_status, course_id")
+        .eq("user_id", user.id)
+        .order("enrolled_at", { ascending: false }),
+
+      backendApi
+        .endpoint("/orders")
+        .select("id, created_at, total_amount, status, items")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10),
+
+      // Fetch all courses so existing enrollments remain resolvable
+      // even if a course is no longer published.
+      backendApi
+        .endpoint("/courses")
+        .select("id, title")
+        .order("title"),
+    ])
+      .then(([e, p, c]) => {
+        setEnrollments((e.data ?? []) as unknown as Enrollment[]);
+        setPurchases(p.data ?? []);
+        setAllCourses((c.data ?? []) as Course[]);
+      })
+      .catch((error) => {
+        console.error("[UserDetailDrawer] Failed to load user details:", error);
+        setActionMsg("Could not load all user details. Please refresh and try again.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+
+
+    }, [user]);
 
   if (!user) return null;
 
@@ -71,30 +116,57 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
     setBanning(false);
   };
 
-  const handleGrantAccess = async () => {
-    if (!selectedCourseId) { alert('Select a course'); return; }
-    if (!confirm(`Grant free access to selected course for ${user.email}?`)) return;
-    setGrantingCourse(true);
-    const expiresAt = new Date(Date.now() + 365 * 86400000).toISOString();
-    // enrolled_at is NOT sent: it is not in CreateEnrollmentDto and the
-    // backend uses forbidNonWhitelisted. The DB defaults it to now().
-    const { error } = await backendApi.endpoint("/enrollments").upsert({
-      user_id: user.id, course_id: selectedCourseId,
-      payment_status: 'completed',
-      expires_at: expiresAt,
-    }, { onConflict: 'user_id,course_id' });
-    if (error) { alert(error.message); }
-    else {
-      const course = allCourses.find(c => c.id === selectedCourseId);
-      setActionMsg(`✓ Access granted to "${course?.title}".`);
-      setShowGrantForm(false);
-      setSelectedCourseId('');
-      // Reload enrollments
-      const { data } = await backendApi.endpoint("/enrollments").select('id, enrolled_at, payment_status, course_id, courses(title, price)').eq('user_id', user.id).order('enrolled_at', { ascending: false });
-      setEnrollments((data ?? []) as unknown as Enrollment[]);
+  
+const handleGrantAccess = async () => {
+  if (!selectedCourseId) {
+    alert("Select a course.");
+    return;
+  }
+
+  if (!confirm(`Grant free access to the selected course for ${user.email}?`)) {
+    return;
+  }
+
+  setGrantingCourse(true);
+
+  try {
+    const { error } = await backendApi.endpoint("/enrollments").insert({
+      user_id: user.id,
+      course_id: Number(selectedCourseId),
+      payment_status: "completed",
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
     }
+
+    const { data, error: reloadError } = await backendApi
+      .endpoint("/enrollments")
+      .select("id, enrolled_at, payment_status, course_id")
+      .eq("user_id", user.id)
+      .order("enrolled_at", { ascending: false });
+
+    if (reloadError) {
+      alert(reloadError.message);
+      return;
+    }
+
+    setEnrollments((data ?? []) as unknown as Enrollment[]);
+    setSelectedCourseId("");
+    setShowGrantForm(false);
+    setActionMsg("Course access granted successfully.");
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Could not grant course access.",
+    );
+  } finally {
     setGrantingCourse(false);
-  };
+  }
+};
+
 
   const handleRevokeAccess = async (enrollmentId: string, courseTitle: string) => {
     if (!confirm(`Revoke access to "${courseTitle}"? Student will lose access immediately.`)) return;
@@ -122,6 +194,21 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
   const inp = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-400';
   const paidEnrollments = enrollments.filter(e => e.payment_status === 'completed');
   const totalSpent = purchases.filter(p => ['paid','shipped','delivered'].includes(p.status)).reduce((s, p) => s + p.total_amount, 0);
+  
+const getCourseTitle = (enrollment: Enrollment): string => {
+  const relatedTitle =
+    enrollment.courses?.title ?? enrollment.course?.title;
+
+  if (relatedTitle) {
+    return relatedTitle;
+  }
+
+  const matchingCourse = allCourses.find(
+    (course) => String(course.id) === String(enrollment.course_id),
+  );
+
+  return matchingCourse?.title ?? `Course ID: ${enrollment.course_id}`;
+};
 
   return (
     <>
@@ -254,11 +341,15 @@ export default function UserDetailDrawer({ user, onClose }: Props) {
                     {enrollments.map(e => (
                       <div key={e.id} className={`flex items-center gap-3 p-3 rounded-xl border ${e.payment_status === 'completed' ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{(e.courses as any)?.title ?? 'Unknown'}</p>
+                          <p className="text-sm font-medium text-gray-800 truncate">
+                            {getCourseTitle(e)}
+
+
+                          </p>
                           <p className="text-xs text-gray-400">{new Date(e.enrolled_at).toLocaleDateString('en-IN')} · <span className={`font-semibold ${e.payment_status === 'completed' ? 'text-green-600' : 'text-amber-600'}`}>{e.payment_status}</span></p>
                         </div>
                         {e.payment_status === 'completed' && (
-                          <button onClick={() => handleRevokeAccess(e.id, (e.courses as any)?.title ?? 'course')}
+                          <button  onClick={() => handleRevokeAccess(e.id, getCourseTitle(e))}
                             className="text-[10px] text-red-600 hover:text-red-800 font-semibold px-2 py-1 border border-red-100 rounded-lg hover:bg-red-50 transition shrink-0">
                             Revoke
                           </button>
