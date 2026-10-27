@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import CourseWizard from "@/components/courses/CourseWizard";
+import CourseKitPanel from "@/components/courses/CourseKitPanel";
 import { CourseWithModules } from "@/types/course";
 import { fetchCourseById } from "@/lib/course-api";
 
@@ -97,6 +98,7 @@ export default function EditCoursePage() {
       </div>
 
       {/* Wizard in edit mode — existingCourse pre-fills everything */}
+      <CourseKitPanel courseId={courseId} />
       <CourseWizard existingCourse={course} />
     </div>
   );

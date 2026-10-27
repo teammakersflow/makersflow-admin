@@ -31,6 +31,7 @@ const NAV = [
     group: "Store",
     items: [
       { label: "Products", href: "/products", icon: Package },
+      { label: "Kits", href: "/kits", icon: Package },
       { label: "Categories", href: "/categories", icon: FolderOpen },
     ],
   },
