@@ -121,6 +121,24 @@ export async function fetchProducts(): Promise<ApiProduct[]> {
   return list.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 }
 
+/**
+ * GET /products?search=&limit= — server-side search (title or description,
+ * case-insensitive), newest first. Used by pickers that must reach the whole
+ * catalogue: plain `GET /products` returns only the first page (10 rows).
+ * An empty `search` returns the newest products.
+ */
+export async function searchProducts(
+  search: string,
+  limit = 50,
+  signal?: AbortSignal
+): Promise<ApiProduct[]> {
+  const params = new URLSearchParams({ page: "1", limit: String(limit) });
+  const term = search.trim();
+  if (term) params.set("search", term);
+  const data = await apiFetch<ApiProduct[]>(`/products?${params.toString()}`, { signal });
+  return Array.isArray(data) ? data : [];
+}
+
 /** GET /products/:id — returns null when it doesn't exist (404). */
 export async function fetchProduct(id: string | number): Promise<ApiProduct | null> {
   try {

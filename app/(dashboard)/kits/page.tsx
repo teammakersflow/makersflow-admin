@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, X } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { fetchProducts, type ApiProduct } from "@/lib/products-api";
+import { type ApiProduct } from "@/lib/products-api";
+import { ProductCombobox } from "@/components/kits/ProductCombobox";
 import {
   listKits, createKit, updateKit, deleteKit, type ApiKit, type KitItemInput,
 } from "@/lib/kits-api";
@@ -27,24 +28,26 @@ type FormState = {
 
 const EMPTY: FormState = { name: "", description: "", status: "active", items: [] };
 
+/** What the dialog needs to show for a product already in the kit. */
+type KnownProduct = { title: string; thumbnail_url: string | null };
+
 export default function KitsPage() {
   const [kits, setKits] = useState<ApiKit[]>([]);
-  const [products, setProducts] = useState<ApiProduct[]>([]);
+  // Titles/thumbnails for products in the open kit (from the kit itself or
+  // from the search result they were picked from).
+  const [known, setKnown] = useState<Map<string, KnownProduct>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [pick, setPick] = useState("");
 
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [k, p] = await Promise.all([listKits(), fetchProducts()]);
-      setKits(k);
-      setProducts(p.filter((x) => !x.is_course));
+      setKits(await listKits());
     } catch (e: any) {
       setError(e?.message ?? "Failed to load kits");
     } finally {
@@ -54,12 +57,9 @@ export default function KitsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const productById = useMemo(
-    () => new Map(products.map((p) => [String(p.id), p])),
-    [products],
-  );
+  const inKit = useMemo(() => new Set(form.items.map((i) => i.product_id)), [form.items]);
 
-  const openNew = () => { setForm(EMPTY); setFormError(null); setPick(""); setOpen(true); };
+  const openNew = () => { setForm(EMPTY); setKnown(new Map()); setFormError(null); setOpen(true); };
 
   const openEdit = (k: ApiKit) => {
     setForm({
@@ -69,15 +69,21 @@ export default function KitsPage() {
       status: k.status === "inactive" ? "inactive" : "active",
       items: k.kit_items.map((i) => ({ product_id: String(i.product_id), quantity: i.quantity })),
     });
+    setKnown(new Map(
+      k.kit_items.map((i) => [
+        String(i.product_id),
+        { title: i.products?.title ?? `Product #${i.product_id}`, thumbnail_url: i.products?.thumbnail_url ?? null },
+      ]),
+    ));
     setFormError(null);
-    setPick("");
     setOpen(true);
   };
 
-  const addItem = () => {
-    if (!pick || form.items.some((i) => i.product_id === pick)) return;
-    setForm({ ...form, items: [...form.items, { product_id: pick, quantity: 1 }] });
-    setPick("");
+  const addProduct = (p: ApiProduct) => {
+    const pid = String(p.id);
+    if (form.items.some((i) => i.product_id === pid)) return;
+    setKnown((m) => new Map(m).set(pid, { title: p.title, thumbnail_url: p.thumbnail_url }));
+    setForm((f) => ({ ...f, items: [...f.items, { product_id: pid, quantity: 1 }] }));
   };
 
   const setQty = (pid: string, q: number) =>
@@ -176,7 +182,7 @@ export default function KitsPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{form.id ? "Edit kit" : "New kit"}</DialogTitle>
           </DialogHeader>
@@ -206,23 +212,7 @@ export default function KitsPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Products in this kit</label>
-              <div className="flex gap-2">
-                <select
-                  className="h-9 flex-1 rounded-md border bg-transparent px-3 text-sm"
-                  value={pick}
-                  onChange={(e) => setPick(e.target.value)}
-                >
-                  <option value="">Select a Store product…</option>
-                  {products
-                    .filter((p) => !form.items.some((i) => i.product_id === String(p.id)))
-                    .map((p) => (
-                      <option key={String(p.id)} value={String(p.id)}>
-                        {p.title}{p.status && p.status !== "published" ? ` (${p.status})` : ""}
-                      </option>
-                    ))}
-                </select>
-                <Button type="button" variant="outline" onClick={addItem} disabled={!pick}>Add</Button>
-              </div>
+              <ProductCombobox excludeIds={inKit} onSelect={addProduct} />
 
               {form.items.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No products added yet.</p>
@@ -230,8 +220,16 @@ export default function KitsPage() {
                 <div className="divide-y rounded-md border">
                   {form.items.map((i) => (
                     <div key={i.product_id} className="flex items-center gap-3 p-2">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
+                        {known.get(i.product_id)?.thumbnail_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={known.get(i.product_id)?.thumbnail_url ?? ""} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </span>
                       <span className="flex-1 text-sm">
-                        {productById.get(i.product_id)?.title ?? `Product #${i.product_id}`}
+                        {known.get(i.product_id)?.title ?? `Product #${i.product_id}`}
                       </span>
                       <Input
                         type="number"
