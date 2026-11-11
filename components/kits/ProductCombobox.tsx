@@ -56,6 +56,21 @@ export function formatPrice(price: ApiProduct["price"] | null | undefined): stri
   return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
+/**
+ * Product thumbnail with a package-icon fallback. Shows the icon when there is
+ * no URL or the image fails to load (for example an unsigned private S3 URL),
+ * instead of the browser's broken-image icon. Give it `key={src}` so a new URL
+ * gets a fresh try.
+ */
+export function ProductThumb({ src }: { src: string | null | undefined }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <Package className="h-4 w-4 text-muted-foreground" />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
+  );
+}
+
 type Props = {
   /** Product IDs already in the kit; they are not offered again. */
   excludeIds: ReadonlySet<string>;
@@ -238,12 +253,7 @@ export function ProductCombobox({ excludeIds, onSelect, allowUnavailable = true,
                   onClick={() => choose(p)}
                 >
                   <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted", unavailable && "opacity-50")}>
-                    {p.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.thumbnail_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                    )}
+                    <ProductThumb key={p.thumbnail_url ?? ""} src={p.thumbnail_url} />
                   </span>
                   <span className={cn("min-w-0 flex-1", unavailable && "opacity-60")}>
                     <span className="block truncate text-sm font-medium">{p.title}</span>

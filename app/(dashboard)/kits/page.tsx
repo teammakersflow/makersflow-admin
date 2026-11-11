@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, X, Package } from "lucide-react";
+import { Plus, Trash2, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { type ApiProduct } from "@/lib/products-api";
-import { ProductCombobox } from "@/components/kits/ProductCombobox";
+import { ProductCombobox, ProductThumb } from "@/components/kits/ProductCombobox";
 import {
   listKits, createKit, updateKit, deleteKit, type ApiKit, type KitItemInput,
 } from "@/lib/kits-api";
@@ -221,12 +221,10 @@ export default function KitsPage() {
                   {form.items.map((i) => (
                     <div key={i.product_id} className="flex items-center gap-3 p-2">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
-                        {known.get(i.product_id)?.thumbnail_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={known.get(i.product_id)?.thumbnail_url ?? ""} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <Package className="h-4 w-4 text-muted-foreground" />
-                        )}
+                        <ProductThumb
+                          key={known.get(i.product_id)?.thumbnail_url ?? ""}
+                          src={known.get(i.product_id)?.thumbnail_url}
+                        />
                       </span>
                       <span className="flex-1 text-sm">
                         {known.get(i.product_id)?.title ?? `Product #${i.product_id}`}
