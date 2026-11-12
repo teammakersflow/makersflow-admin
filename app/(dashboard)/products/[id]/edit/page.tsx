@@ -181,7 +181,7 @@ export default function EditProductPage() {
       await updateProduct(id, {          // PATCH /products/:id
         images,
         videos,
-        thumbnail_url: thumb || undefined,
+        thumbnail_url: thumb || null,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "unknown error";
@@ -326,7 +326,7 @@ export default function EditProductPage() {
         // Media is written here too so Save is always authoritative.
         images,
         videos,
-        thumbnail_url: thumbnailUrl || undefined,
+        thumbnail_url: thumbnailUrl || null,
         features: form.features.split(",").map((f) => f.trim()).filter(Boolean),
       });
       router.push("/products");
