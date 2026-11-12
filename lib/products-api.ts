@@ -62,7 +62,7 @@ export type ProductPayload = {
   original_price?: number;
   category?: string;
   subcategory?: string;
-  thumbnail_url?: string;
+  thumbnail_url?: string | null;
   images?: string[];
   videos?: string[];
   features?: string[];
